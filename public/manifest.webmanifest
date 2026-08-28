@@ -3,7 +3,7 @@
   "name": "Skill Decision Drills",
   "short_name": "Drill Board",
   "description": "Write decision drills and replay the sample offline.",
-  "start_url": "/?v=3",
+  "start_url": "/?v=4",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

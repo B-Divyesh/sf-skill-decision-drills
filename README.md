@@ -10,7 +10,7 @@ Nothing you do there changes your drills. It opens a three-choice practice drill
 - Create drills that save in this browser.
 - Let learners choose, see feedback, and replay.
 - Change choice order on replay.
-- See attempts and the choices learners missed.
+- See attempts, first-decision change by attempt three, and the choices learners missed.
 - Export a JSON backup or CSV report.
 - Restore a JSON backup after confirmation.
 - Add a scenario photo that is resized and stored in this browser.
@@ -18,7 +18,7 @@ Nothing you do there changes your drills. It opens a three-choice practice drill
 
 ## Run locally
 
-Use Node.js 20 or newer.
+Use Node.js 20.19 or newer, or Node.js 22.12 or newer.
 
 ```bash
 npm ci
@@ -53,7 +53,7 @@ Read the [privacy notice](privacy/index.html) and [terms](terms/index.html).
 
 ## Deploy
 
-Deploy `dist/` as an Azure Static Web App. The included configuration handles app routes, cache policy, security headers, and real 404 responses.
+Deploy `dist/` as an Azure Static Web App. The included configuration defines app routes, cache policy, security headers, and a real 404 override.
 
 ## Design and license
 

@@ -3,7 +3,17 @@ import { accuracy, AppDataValidationError, misconceptionCounts, newChoice, newDr
 import { LocalStore } from './storage';
 import type { AppData, Attempt, Drill, DrillNode, Selection } from './types';
 
-const demoMode = new URLSearchParams(window.location.search).get('demo') === '1' || window.location.pathname === '/demo';
+const queryRequestsDemo = new URLSearchParams(window.location.search).get('demo') === '1';
+
+// Keep the documented query entry point, but give the demo one public identity.
+// This happens before storage opens so `/?demo=1` and `/demo` always use the
+// same isolated namespace and canonical URL.
+if (queryRequestsDemo && window.location.pathname === '/') {
+  history.replaceState(history.state, '', '/demo');
+}
+
+const demoMode = queryRequestsDemo || window.location.pathname === '/demo';
+const transitionFocusKey = 'sdd:pending-route-focus';
 const store = new LocalStore(demoMode);
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('App root is missing.');
@@ -16,6 +26,7 @@ let fatalStorageError: unknown = null;
 let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 let updateReady = false;
 let previousChoiceOrder: Record<string, string[]> = {};
+let initialized = false;
 
 type PlayerSession = {
   drillId: string;
@@ -50,6 +61,27 @@ const route = (): Route => {
   if (parts[0] === 'insights') return { page: 'insights', id: parts[1] };
   if (['data', 'about', 'privacy', 'terms', '404'].includes(parts[0]!)) return { page: parts[0] };
   return { page: '404' };
+};
+
+const prepareDocumentTransition = (destination: 'demo' | 'library'): void => {
+  const priorState = history.state && typeof history.state === 'object' ? history.state as Record<string, unknown> : {};
+  history.replaceState({ ...priorState, sddFocusOnReturn: true }, '');
+  sessionStorage.setItem(transitionFocusKey, destination);
+};
+
+const consumeTransitionFocus = (): boolean => {
+  const current = route().page;
+  const pendingDestination = sessionStorage.getItem(transitionFocusKey);
+  if (pendingDestination === current) {
+    sessionStorage.removeItem(transitionFocusKey);
+    return true;
+  }
+  const currentState = history.state && typeof history.state === 'object' ? history.state as Record<string, unknown> : null;
+  if (!currentState?.sddFocusOnReturn) return false;
+  const nextState = { ...currentState };
+  delete nextState.sddFocusOnReturn;
+  history.replaceState(nextState, '');
+  return true;
 };
 
 const href = (page: string, id?: string): string => {
@@ -103,12 +135,12 @@ const shell = (content: string): string => {
       </nav>
     </header>
     ${demoMode ? '<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved</strong><button type="button" class="text-button" data-action="reset-demo">Reset demo</button><a href="/" data-action="start-real">Start for real</a></aside>' : ''}
-    ${!navigator.onLine ? '<div class="offline-bar" role="status">Offline — browser-saved drills still work.</div>' : ''}
+    ${!navigator.onLine ? '<div class="offline-bar" role="status">Offline — browser-saved drills work after the first visit.</div>' : ''}
     <main id="main" tabindex="-1">${content}</main>
     <footer>
       <p><strong>Practice is not proof.</strong> Decision drills support rehearsal and do not replace qualified instruction or certify real-world competence.</p>
       <nav aria-label="Legal and product information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/data">Your data</a><a href="/about">About</a></nav>
-      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 3</p>
+      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 4</p>
     </footer>
     <div id="live-status" class="sr-only" aria-live="polite">${escapeHtml(statusMessage || errorMessage)}</div>
     <div id="update-toast" class="toast" ${updateReady ? '' : 'hidden'}><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
@@ -144,7 +176,7 @@ const renderLibrary = (): string => `
         <span class="action-note">Open a three-choice practice drill.</span>
       </div>
       <ul class="local-note"><li>Your drills stay in this browser.</li><li>The sample works offline after your first visit.</li><li>The sample opens without payment.</li></ul>
-      <button class="hero-secondary text-button" type="button" data-action="new-drill">Build a drill</button>
+      <button class="hero-secondary text-button" type="button" data-action="new-drill">Create a drill</button>
     </div>
     <figure class="hero-figure">
       <picture>
@@ -164,11 +196,11 @@ const renderLibrary = (): string => `
         <span class="empty-route" aria-hidden="true">?</span>
         <h2>No drills on this device</h2>
         <p>Start with one moment where a learner has to decide what to do next. You can build the branches as you go.</p>
-        <button class="button primary" type="button" data-action="new-drill">Create your first drill</button>
+        <button class="button primary" type="button" data-action="new-drill">Create a drill</button>
       </div>`}
   </section>
   <section class="how-strip" aria-labelledby="how-it-works">
-    <div><p class="eyebrow">Coach loop</p><h2 id="how-it-works">Make a drill in three steps</h2></div>
+    <div><p class="eyebrow">Coach loop</p><h2 id="how-it-works">Create a drill in three steps</h2></div>
     <ol><li><strong>Write</strong><span>Write the moment, not a trivia question.</span></li><li><strong>Show</strong><span>Show what happens after each choice.</span></li><li><strong>Replay</strong><span>Replay with choices in a new order.</span></li></ol>
   </section>`;
 
@@ -325,7 +357,7 @@ const insightPanel = (drill: Drill): string => {
 const renderInsights = (id?: string): string => {
   const drill = (id && data.drills.find((item) => item.id === id)) || data.drills[0];
   return `
-    <section class="insights-head"><div><p class="eyebrow">Local aggregate report</p><h1>Replay insights</h1><p>Spot recurring misconceptions and whether the first decision improves by attempt three.</p></div>${drill ? `<label for="insight-drill">Drill<select id="insight-drill" data-action="select-insight-drill">${data.drills.map((item) => `<option value="${item.id}" ${item.id === drill.id ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></label>` : ''}</section>
+    <section class="insights-head"><div><p class="eyebrow">Local aggregate report</p><h1>Replay insights</h1><p>Review recurring misconceptions and first-decision change from attempt one to three.</p></div>${drill ? `<label for="insight-drill">Drill<select id="insight-drill" data-action="select-insight-drill">${data.drills.map((item) => `<option value="${item.id}" ${item.id === drill.id ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></label>` : ''}</section>
     ${drill ? `<section class="insight-board"><div class="report-title"><p class="eyebrow">Report for</p><h2>${escapeHtml(drill.title)}</h2></div>${insightPanel(drill)}</section>` : '<div class="empty-state"><h2>No drill data yet</h2><p>Create a drill, then replay it to collect local results.</p><a class="button primary" href="/drills">Create a drill</a></div>'}`;
 };
 
@@ -377,7 +409,8 @@ const routeDetails = (current: Route): { title: string; description: string; ann
 const setMetadata = (current: Route): void => {
   const details = routeDetails(current);
   document.title = details.title;
-  const canonical = `${window.location.origin}${window.location.pathname}`;
+  const canonicalPath = current.page === '404' ? '/404' : window.location.pathname;
+  const canonical = `https://skill-decision-drills.sociobot.in${canonicalPath}`;
   const update = (selector: string, attribute: string, value: string): void => {
     const element = document.head.querySelector<HTMLMetaElement | HTMLLinkElement>(selector);
     if (element) element.setAttribute(attribute, value);
@@ -483,11 +516,13 @@ document.addEventListener('click', async (event) => {
   if (action === 'start-real') {
     event.preventDefault();
     await store.clear();
+    prepareDocumentTransition('library');
     window.location.assign('/');
     return;
   }
   if (action === 'open-demo') {
     event.preventDefault();
+    prepareDocumentTransition('demo');
     window.location.assign('/demo');
     return;
   }
@@ -710,6 +745,11 @@ window.addEventListener('popstate', () => {
   render(true);
   window.scrollTo(0, 0);
 });
+window.addEventListener('pageshow', (event) => {
+  if (!event.persisted || !initialized || !consumeTransitionFocus()) return;
+  render(true);
+  window.scrollTo(0, 0);
+});
 window.addEventListener('online', () => render());
 window.addEventListener('offline', () => render());
 
@@ -740,7 +780,8 @@ const initialize = async (): Promise<void> => {
   try {
     await store.initialize();
     data = await store.getAll();
-    render();
+    initialized = true;
+    render(consumeTransitionFocus());
     void registerServiceWorker();
   } catch (error) {
     fatalStorageError = error;

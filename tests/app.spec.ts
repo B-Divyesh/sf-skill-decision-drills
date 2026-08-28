@@ -1,9 +1,12 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
-const demo = '/?demo=1';
+const demo = '/demo';
+const queryDemo = '/?demo=1';
 const productOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4174').origin;
+const canonicalOrigin = 'https://skill-decision-drills.sociobot.in';
 
 const downloadText = async (download: Download): Promise<string> => {
   const stream = await download.createReadStream();
@@ -40,6 +43,17 @@ const completeSample = async (page: Page): Promise<void> => {
   await expect(page.getByRole('heading', { name: 'Route replayed.' })).toBeVisible();
 };
 
+const completeSampleWithFirstMiss = async (page: Page): Promise<void> => {
+  await page.getByRole('button', { name: /Open the newest-looking file/ }).click();
+  await expect(page.getByRole('heading', { name: 'Pause and inspect the result.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
+  await page.getByRole('button', { name: /Compare them, note the differences/ }).click();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
+  await page.getByRole('button', { name: /Deliver it with a short change summary/ }).click();
+  await page.getByRole('button', { name: 'Finish and debrief' }).click();
+  await expect(page.getByRole('heading', { name: 'Route replayed.' })).toBeVisible();
+};
+
 const createImage = async (page: Page): Promise<Buffer> => {
   const encoded = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
@@ -62,7 +76,8 @@ test('@claim:demo-isolated changes and resets demo data without touching normal 
   await page.getByLabel('Drill title').press('Tab');
   await expect(page.locator('#live-status')).toHaveText('Saved on this device.');
   const normalBefore = JSON.stringify(await database(page, 'skill-decision-drills'));
-  await page.goto(demo);
+  await page.goto(queryDemo);
+  await expect(page).toHaveURL(/\/demo$/);
   await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
   await page.getByRole('button', { name: /Ask what “finished” means/ }).click();
   await page.getByRole('button', { name: 'Reset demo' }).click();
@@ -93,7 +108,7 @@ test('@claim:sample-access opens a three-choice sample without payment or setup'
   await expect(page.locator('form[action*="checkout"], [href*="checkout"], [name*="payment"]')).toHaveCount(0);
 });
 
-test('@claim:offline-reload keeps the sample drill usable offline after a first visit', async ({ page, context }) => {
+test('@claim:offline-reload keeps browser-saved drills usable offline after a first visit', async ({ page, context }) => {
   await page.goto(demo);
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
@@ -102,7 +117,23 @@ test('@claim:offline-reload keeps the sample drill usable offline after a first 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('A teammate hands you');
   await page.getByRole('button', { name: /Ask what “finished” means/ }).click();
   await expect(page.getByRole('heading', { name: 'That protects the outcome.' })).toBeVisible();
-  await expect(page.getByText('Offline — browser-saved drills still work.')).toBeVisible();
+  await expect(page.getByText('Offline — browser-saved drills work after the first visit.')).toBeVisible();
+  await context.setOffline(false);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Create drill' }).click();
+  await page.getByLabel('Drill title').fill('Offline camera check');
+  await page.getByLabel('Drill title').press('Tab');
+  await page.getByLabel('Consequence shown after choosing').first().fill('The camera owner confirms the approved frame.');
+  await page.getByLabel('Consequence shown after choosing').first().press('Tab');
+  await page.getByLabel('Mark as a strong decision').first().check();
+  await page.getByRole('link', { name: 'Preview drill' }).click();
+  await page.reload();
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Decision 1');
+  await page.getByRole('button', { name: /Option A/ }).click();
+  await expect(page.getByRole('heading', { name: 'That protects the outcome.' })).toBeVisible();
+  await expect(page.getByText('Offline — browser-saved drills work after the first visit.')).toBeVisible();
 });
 
 test('@claim:normal-local-only keeps authored text, photos, attempts, imports, exports, and deletion in this browser', async ({ page }) => {
@@ -149,15 +180,24 @@ test('@claim:normal-local-only keeps authored text, photos, attempts, imports, e
   expect(external).toEqual([]);
 });
 
-test('@claim:no-tracking loads every public route without analytics or third-party requests', async ({ page }) => {
+test('@claim:no-tracking has no account, advertising code, analytics, or third-party runtime requests', async ({ page }) => {
   const external: string[] = [];
   page.on('request', (request) => {
     if (new URL(request.url()).origin !== productOrigin) external.push(request.url());
   });
-  for (const path of ['/', '/demo', '/drills', '/insights', '/data', '/about', '/privacy', '/terms']) await page.goto(path);
+  for (const path of ['/', '/demo', '/drills', '/drills/starter_studio_handoff/edit', '/drills/starter_studio_handoff/play', '/insights', '/insights/starter_studio_handoff', '/data', '/about', '/privacy', '/terms', '/not-a-route']) {
+    await page.goto(path);
+    const riskyControls = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('a[href], form[action], input, script[src], iframe')]
+      .map((element) => `${element.tagName} ${(element.getAttribute('href') ?? element.getAttribute('action') ?? element.getAttribute('src') ?? element.getAttribute('type') ?? '')}`.toLowerCase())
+      .filter((value) => /account|sign[ -]?(in|up)|log[ -]?in|password|checkout|payment|advertis|analytics|tracking|doubleclick|googleads|gtag|mixpanel|segment/.test(value)));
+    expect(riskyControls, path).toEqual([]);
+    const runtimeUrls = await page.locator('script[src], iframe[src]').evaluateAll((elements) => elements.map((element) => (element as HTMLScriptElement | HTMLIFrameElement).src));
+    expect(runtimeUrls.every((url) => new URL(url).origin === productOrigin), path).toBe(true);
+  }
+  const runtimeSources = ['index.html', 'src/main.ts', 'public/sw.js', 'privacy/index.html', 'terms/index.html']
+    .map((file) => readFileSync(file, 'utf8')).join('\n');
+  expect(runtimeSources).not.toMatch(/doubleclick|googleads|gtag|mixpanel|segment|plausible|matomo/i);
   expect(external).toEqual([]);
-  expect(await page.locator('script[src*="analytics"], script[src^="http"], iframe').count()).toBe(0);
-  expect(await page.locator('input[type="password"], form[action*="login"], [href*="sign-in"], [href*="checkout"]').count()).toBe(0);
 });
 
 test('@claim:replay-feedback shows consequences, debrief, and permits replay', async ({ page }) => {
@@ -181,19 +221,19 @@ test('@claim:shuffle changes the choice order on replay', async ({ page }) => {
   expect(after).not.toEqual(before);
 });
 
-test('@claim:insights reports completed attempts and missed choices', async ({ page }) => {
+test('@claim:insights reports attempts, accuracy, missed choices, and first-decision change by attempt three', async ({ page }) => {
   await page.goto(demo);
-  await page.getByRole('button', { name: /Open the newest-looking file/ }).click();
-  await expect(page.getByRole('heading', { name: 'Pause and inspect the result.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Show next decision' }).click();
-  await page.getByRole('button', { name: /Compare them, note the differences/ }).click();
-  await page.getByRole('button', { name: 'Show next decision' }).click();
-  await page.getByRole('button', { name: /Deliver it with a short change summary/ }).click();
-  await page.getByRole('button', { name: 'Finish and debrief' }).click();
+  await completeSampleWithFirstMiss(page);
+  await page.getByRole('button', { name: 'Replay with shuffled choices' }).click();
+  await completeSample(page);
+  await page.getByRole('button', { name: 'Replay with shuffled choices' }).click();
+  await completeSample(page);
   await page.getByRole('link', { name: 'View sample results' }).click();
   await expect(page).toHaveURL(/\/insights\/starter_studio_handoff\?demo=1$/);
-  await expect(page.locator('.metric').nth(0).locator('strong')).toHaveText('1');
-  await expect(page.locator('.metric').nth(1).locator('strong')).toHaveText('67%');
+  await expect(page.getByText('Review recurring misconceptions and first-decision change from attempt one to three.')).toBeVisible();
+  await expect(page.locator('.metric').nth(0).locator('strong')).toHaveText('3');
+  await expect(page.locator('.metric').nth(1).locator('strong')).toHaveText('100%');
+  await expect(page.locator('.metric').nth(2).locator('strong')).toHaveText('+100%');
   const missedChoice = page.locator('.misconceptions li').filter({ hasText: 'Acting before confirming the goal' });
   await expect(missedChoice).toBeVisible();
   await expect(missedChoice.locator('strong')).toHaveText('1');
@@ -212,15 +252,25 @@ test('@claim:photo-local resizes a scenario image and stores it only in IndexedD
   expect(await page.evaluate(() => Object.keys(localStorage).some((key) => key.includes('image')))).toBe(false);
 });
 
-test('@claim:csv-export exports one summary and two result rows per completed attempt', async ({ page }) => {
+test('@claim:csv-export exports one result set per completed attempt', async ({ page }) => {
   await page.goto(demo);
   await completeSample(page);
+  await page.getByRole('button', { name: 'Replay with shuffled choices' }).click();
+  await completeSampleWithFirstMiss(page);
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export sample CSV' }).click();
   const file = await downloadPromise;
   expect(file.suggestedFilename()).toMatch(/results\.csv$/);
   const rows = (await downloadText(file)).trim().split('\n');
-  expect(rows).toEqual(['metric,label,value', 'summary,attempts,1', 'attempt_accuracy,attempt_1,100', 'first_decision,attempt_1,100']);
+  expect(rows).toEqual([
+    'metric,label,value',
+    'summary,attempts,2',
+    'attempt_accuracy,attempt_1,100',
+    'first_decision,attempt_1,100',
+    'attempt_accuracy,attempt_2,67',
+    'first_decision,attempt_2,0',
+    'misconception_count,"Acting before confirming the goal",1'
+  ]);
 });
 
 test('@claim:json-export exports valid demo drills and completed attempt fields', async ({ page }) => {
@@ -254,35 +304,57 @@ test('@claim:json-import replaces demo data only after confirmation', async ({ p
   expect(stored.drills[0]?.title).toBe('Imported camera check');
 });
 
-test('@claim:real-routes gives every screen complete metadata, links, focus, and Back behavior', async ({ page }) => {
-  const routes: Array<[string, string]> = [
-    ['/', 'Skill Decision Drills — Rehearse real decisions'], ['/demo', 'Demo — Skill Decision Drills'], ['/drills', 'Skill Decision Drills — Rehearse real decisions'],
-    ['/drills/starter_studio_handoff/edit', 'Skill Decision Drills — Edit a drill'], ['/drills/starter_studio_handoff/play', 'Skill Decision Drills — Run a practice drill'],
-    ['/insights', 'Skill Decision Drills — Replay insights'], ['/data', 'Skill Decision Drills — Your data'], ['/about', 'About — Skill Decision Drills'],
-    ['/privacy', 'Privacy — Skill Decision Drills'], ['/terms', 'Terms — Skill Decision Drills']
+test('@claim:real-routes gives every screen exact metadata, working links, focus, and Back behavior', async ({ page }) => {
+  const routes: Array<[string, string, string]> = [
+    ['/', 'Skill Decision Drills — Rehearse real decisions', '/'],
+    ['/demo', 'Demo — Skill Decision Drills', '/demo'],
+    ['/drills', 'Skill Decision Drills — Rehearse real decisions', '/drills'],
+    ['/drills/starter_studio_handoff/edit', 'Skill Decision Drills — Edit a drill', '/drills/starter_studio_handoff/edit'],
+    ['/drills/starter_studio_handoff/play', 'Skill Decision Drills — Run a practice drill', '/drills/starter_studio_handoff/play'],
+    ['/insights', 'Skill Decision Drills — Replay insights', '/insights'],
+    ['/insights/starter_studio_handoff', 'Skill Decision Drills — Replay insights', '/insights/starter_studio_handoff'],
+    ['/data', 'Skill Decision Drills — Your data', '/data'],
+    ['/about', 'About — Skill Decision Drills', '/about'],
+    ['/privacy', 'Privacy — Skill Decision Drills', '/privacy'],
+    ['/terms', 'Terms — Skill Decision Drills', '/terms'],
+    ['/404', 'Page not found — Skill Decision Drills', '/404']
   ];
-  for (const [path, title] of routes) {
+  const linkedPaths = new Set<string>();
+  for (const [path, title, canonicalPath] of routes) {
     await page.goto(path);
     await expect(page).toHaveTitle(title);
     expect(title.length).toBeLessThanOrEqual(60);
     await expect(page.locator('main')).toHaveCount(1);
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /skill-decision-drills\.sociobot\.in|127\.0\.0\.1/);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${canonicalOrigin}${canonicalPath}`);
     for (const selector of ['meta[name="description"]', 'meta[property="og:title"]', 'meta[property="og:description"]', 'meta[property="og:image"]', 'meta[name="twitter:card"]', 'meta[name="twitter:title"]', 'meta[name="twitter:description"]', 'meta[name="twitter:image"]', 'link[rel="apple-touch-icon"]']) await expect(page.locator(selector), `${path} ${selector}`).toHaveCount(1);
+    for (const href of await page.locator('a[href]').evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute('href') ?? ''))) {
+      if (href.startsWith('/') && !href.startsWith('//')) linkedPaths.add(href);
+    }
   }
+  await page.goto(queryDemo);
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${canonicalOrigin}/demo`);
+  for (const path of linkedPaths) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('That branch is missing.');
+  }
+
   await page.goto('/');
-  await page.locator('footer').getByRole('link', { name: 'Privacy' }).click();
-  await expect(page).toHaveURL(/\/privacy$/);
-  await expect(page).toHaveTitle('Privacy — Skill Decision Drills');
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL(/\/demo$/);
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
-  await expect(page.locator('#live-status')).toHaveText('Privacy');
-  await page.locator('footer').getByRole('link', { name: 'Terms' }).click();
-  await expect(page).toHaveURL(/\/terms$/);
-  await expect(page).toHaveTitle('Terms — Skill Decision Drills');
+  await expect(page.locator('#live-status')).toHaveText('Demo drill');
   await page.goBack();
-  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
-  await expect(page.locator('#live-status')).toHaveText('Privacy');
+  await expect(page.locator('#live-status')).toHaveText('Drill board');
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL(/\/demo$/);
+  await page.getByRole('link', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page.locator('#live-status')).toHaveText('Drill board');
 });
 
 test('@claim:sample-content ships the factual creative-project sample', async ({ page }) => {
@@ -301,27 +373,43 @@ test('@claim:artwork-provenance keeps the original art and prompt metadata in th
   await expect(page.getByText('The original paper-board illustration was generated for this product.')).toBeVisible();
 });
 
-test('@claim:build-output supports Node 20+ and emits the static site at dist/index.html', async () => {
+test('@claim:build-output runs a pinned Node 20.19 build and emits dist/index.html', async () => {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-  expect(pkg.engines.node).toBe('>=20');
-  expect(Number(process.versions.node.split('.')[0])).toBeGreaterThanOrEqual(20);
+  expect(pkg.engines.node).toBe('^20.19.0 || >=22.12.0');
+  const node20Version = execFileSync('npx', ['--yes', 'node@20.19.0', '--version'], { encoding: 'utf8', timeout: 120_000 }).trim();
+  expect(node20Version).toBe('v20.19.0');
+  execFileSync('npx', ['--yes', 'node@20.19.0', './node_modules/vite/bin/vite.js', 'build'], { encoding: 'utf8', timeout: 120_000 });
   expect(existsSync('dist/index.html')).toBe(true);
   expect(readFileSync('dist/index.html', 'utf8')).toContain('<title>Skill Decision Drills — Rehearse real decisions</title>');
 });
 
-test('@claim:deployment-config defines explicit app routes, security headers, caching, and a real 404', async () => {
+test('@claim:deployment-config defines every app route, security header, cache rule, and 404 override', async () => {
   const config = JSON.parse(readFileSync('public/staticwebapp.config.json', 'utf8'));
+  const builtConfig = JSON.parse(readFileSync('dist/staticwebapp.config.json', 'utf8'));
+  expect(builtConfig).toEqual(config);
   expect(config.navigationFallback).toBeUndefined();
-  expect(config.routes).toEqual(expect.arrayContaining([
-    expect.objectContaining({ route: '/demo', rewrite: '/index.html' }),
-    expect.objectContaining({ route: '/drills/*', rewrite: '/index.html' })
-  ]));
+  const route = (path: string) => config.routes.find((item: { route: string }) => item.route === path);
+  for (const path of ['/demo', '/drills', '/drills/*', '/insights', '/insights/*', '/data', '/about']) {
+    expect(route(path), path).toEqual({ route: path, rewrite: '/index.html' });
+  }
+  expect(route('/assets/decision-board-*.webp')?.headers?.['cache-control']).toBe('public, max-age=3600, must-revalidate');
+  expect(route('/assets/*')?.headers?.['cache-control']).toBe('public, max-age=31536000, immutable');
+  expect(route('/sw.js')?.headers?.['cache-control']).toBe('no-cache, no-store, must-revalidate');
+  expect(route('/manifest.webmanifest')?.headers?.['cache-control']).toBe('public, max-age=3600, must-revalidate');
+  expect(route('/')?.headers?.['cache-control']).toBe('no-cache, must-revalidate');
+  expect(route('/privacy/*')?.headers?.['cache-control']).toBe('no-cache, must-revalidate');
+  expect(route('/terms/*')?.headers?.['cache-control']).toBe('no-cache, must-revalidate');
   expect(config.responseOverrides['404']).toEqual({ rewrite: '/not-found.html', statusCode: 404 });
-  expect(config.globalHeaders).toEqual(expect.objectContaining({
+  expect(config.globalHeaders).toEqual({
     'X-Content-Type-Options': 'nosniff',
-    'Cross-Origin-Opener-Policy': 'same-origin'
-  }));
-  expect(config.globalHeaders['Content-Security-Policy']).toContain("default-src 'self'");
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-Frame-Options': 'DENY',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    'Content-Security-Policy': "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'"
+  });
+  expect(config.mimeTypes).toEqual({ '.webmanifest': 'application/manifest+json' });
+  expect(existsSync('dist/not-found.html')).toBe(true);
 });
 
 test('every route has the shared shell and no serious accessibility violations', async ({ page }) => {
@@ -333,7 +421,7 @@ test('every route has the shared shell and no serious accessibility violations',
     await page.goto(path);
     await expect(page.locator('.brand-mark')).toHaveCount(1);
     await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link')).toHaveText(['Drills', 'Demo', 'Insights', 'Privacy']);
-    await expect(page.locator('footer')).toContainText('Built by Param Factory · release 3');
+    await expect(page.locator('footer')).toContainText('Built by Param Factory · release 4');
     const scan = await new AxeBuilder({ page }).analyze();
     expect(scan.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? '')), path).toEqual([]);
     if (path !== '/not-a-route') expect(errors.slice(errorsBefore), path).toEqual([]);

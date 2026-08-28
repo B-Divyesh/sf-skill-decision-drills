@@ -1,5 +1,5 @@
-const VERSION = 'sdd-shell-v7';
-const ASSETS = 'sdd-assets-v7';
+const VERSION = 'sdd-shell-v8';
+const ASSETS = 'sdd-assets-v8';
 const SHELL = [
   '/', '/index.html', '/offline.html', '/manifest.webmanifest',
   '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png',
