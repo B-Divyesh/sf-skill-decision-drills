@@ -184,7 +184,7 @@ export const starterDrill = (): Drill => {
   return {
     id: 'starter_studio_handoff',
     title: 'Studio handoff: find the missing context',
-    description: 'A safe sample about receiving an unfinished creative project. Practice clarifying before acting.',
+    description: 'This sample starts with an unfinished creative project. Practise asking what done means before you act.',
     createdAt: '2026-08-28T00:00:00.000Z',
     updatedAt: '2026-08-28T00:00:00.000Z',
     startNodeId: arrival,

@@ -1,5 +1,13 @@
 {
   "routes": [
+    { "route": "/demo", "rewrite": "/index.html" },
+    { "route": "/drills", "rewrite": "/index.html" },
+    { "route": "/drills/*", "rewrite": "/index.html" },
+    { "route": "/insights", "rewrite": "/index.html" },
+    { "route": "/insights/*", "rewrite": "/index.html" },
+    { "route": "/data", "rewrite": "/index.html" },
+    { "route": "/about", "rewrite": "/index.html" },
+    { "route": "/404", "rewrite": "/404.html", "statusCode": 404 },
     {
       "route": "/assets/decision-board-*.webp",
       "headers": {
@@ -43,13 +51,11 @@
       }
     }
   ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/assets/*",
-      "/icons/*",
-      "/*.{css,js,png,jpg,svg,webp,ico,woff2,json,txt,xml,wasm,webmanifest}"
-    ]
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404.html",
+      "statusCode": 404
+    }
   },
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",

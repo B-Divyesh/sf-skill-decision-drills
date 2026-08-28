@@ -102,4 +102,13 @@ export class LocalStore {
     await this.replaceAll(cleanData);
     return cleanData;
   }
+
+  async clear(): Promise<void> {
+    const db = await this.dbPromise;
+    const transaction = db.transaction([DRILLS, ATTEMPTS], 'readwrite');
+    transaction.objectStore(DRILLS).clear();
+    transaction.objectStore(ATTEMPTS).clear();
+    await transactionDone(transaction);
+    localStorage.removeItem(this.initializedKey);
+  }
 }

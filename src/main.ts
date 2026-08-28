@@ -3,8 +3,6 @@ import { accuracy, AppDataValidationError, misconceptionCounts, newChoice, newDr
 import { LocalStore } from './storage';
 import type { AppData, Attempt, Drill, DrillNode, Selection } from './types';
 
-declare const __BUILD_ID__: string;
-
 const demoMode = new URLSearchParams(window.location.search).get('demo') === '1' || window.location.pathname === '/demo';
 const store = new LocalStore(demoMode);
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -17,6 +15,7 @@ let errorMessage = '';
 let fatalStorageError: unknown = null;
 let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 let updateReady = false;
+let previousChoiceOrder: Record<string, string[]> = {};
 
 type PlayerSession = {
   drillId: string;
@@ -42,14 +41,14 @@ const escapeHtml = (value: string): string => value
 type Route = { page: string; id?: string };
 
 const route = (): Route => {
-  if (demoMode) return { page: 'demo' };
   const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+  if (demoMode && (!parts.length || parts[0] === 'demo')) return { page: 'demo' };
   if (!parts.length || (parts[0] === 'drills' && parts.length === 1)) return { page: 'library' };
   if (parts[0] === 'demo') return { page: 'demo' };
   if (parts[0] === 'drills' && parts[2] === 'edit') return { page: 'edit', id: parts[1] };
   if (parts[0] === 'drills' && parts[2] === 'play') return { page: 'play', id: parts[1] };
   if (parts[0] === 'insights') return { page: 'insights', id: parts[1] };
-  if (['data', 'upgrade', 'about', 'privacy', 'terms', '404'].includes(parts[0]!)) return { page: parts[0] };
+  if (['data', 'about', 'privacy', 'terms', '404'].includes(parts[0]!)) return { page: parts[0] };
   return { page: '404' };
 };
 
@@ -62,8 +61,11 @@ const href = (page: string, id?: string): string => {
 };
 
 const navigate = (to: string, announce = true): void => {
-  if (to === window.location.pathname + window.location.search) return;
-  history.pushState({}, '', to);
+  const destination = demoMode && !new URL(to, window.location.origin).searchParams.has('demo')
+    ? `${to}${to.includes('?') ? '&' : '?'}demo=1`
+    : to;
+  if (destination === window.location.pathname + window.location.search) return;
+  history.pushState({}, '', destination);
   if (route().page !== 'play' && route().page !== 'demo') player = null;
   render(announce);
   window.scrollTo(0, 0);
@@ -97,16 +99,16 @@ const shell = (content: string): string => {
         <a ${current === 'library' ? 'aria-current="page"' : ''} href="/drills">Drills</a>
         <a ${current === 'demo' ? 'aria-current="page"' : ''} href="/demo" data-action="open-demo">Demo</a>
         <a ${current === 'insights' ? 'aria-current="page"' : ''} href="/insights">Insights</a>
-        <a ${current === 'data' ? 'aria-current="page"' : ''} href="/data">Your data</a>
+        <a ${current === 'privacy' ? 'aria-current="page"' : ''} href="/privacy">Privacy</a>
       </nav>
     </header>
     ${demoMode ? '<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved</strong><button type="button" class="text-button" data-action="reset-demo">Reset demo</button><a href="/" data-action="start-real">Start for real</a></aside>' : ''}
-    ${!navigator.onLine ? '<div class="offline-bar" role="status">Offline mode — everything on this device still works.</div>' : ''}
+    ${!navigator.onLine ? '<div class="offline-bar" role="status">Offline — browser-saved drills still work.</div>' : ''}
     <main id="main" tabindex="-1">${content}</main>
     <footer>
       <p><strong>Practice is not proof.</strong> Decision drills support rehearsal and do not replace qualified instruction or certify real-world competence.</p>
-      <nav aria-label="Legal and product information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/about">About</a></nav>
-      <p class="made-note">Artwork made for this app. No tracking. Your drills stay in this browser.<br>Built by Param Factory · build ${__BUILD_ID__}</p>
+      <nav aria-label="Legal and product information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/data">Your data</a><a href="/about">About</a></nav>
+      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 2</p>
     </footer>
     <div id="live-status" class="sr-only" aria-live="polite">${escapeHtml(statusMessage || errorMessage)}</div>
     <div id="update-toast" class="toast" ${updateReady ? '' : 'hidden'}><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
@@ -118,15 +120,15 @@ const drillCard = (drill: Drill): string => {
   const readyErrors = validateDrill(drill);
   return `
     <article class="drill-card" data-drill-id="${drill.id}">
-      <div class="card-tape" aria-hidden="true">${drill.id.startsWith('starter_') ? 'SAFE SAMPLE' : `${drill.nodes.length} NODES`}</div>
+      <div class="card-tape" aria-hidden="true">${drill.id.startsWith('starter_') ? 'SAMPLE DRILL' : `${drill.nodes.length} NODES`}</div>
       <p class="eyebrow">${attempts.length} ${attempts.length === 1 ? 'attempt' : 'attempts'} · ${readyErrors.length ? `${readyErrors.length} setup note${readyErrors.length === 1 ? '' : 's'}` : 'Ready to play'}</p>
       <h2>${escapeHtml(drill.title)}</h2>
       <p>${escapeHtml(drill.description || 'No coach note yet.')}</p>
       <div class="card-actions">
         <a class="button primary" href="${href('play', drill.id)}">Run drill</a>
-        <a class="button" href="${href('edit', drill.id)}">Edit</a>
+        <a class="button" href="${href('edit', drill.id)}">Edit drill</a>
         <a class="text-link" href="${href('insights', drill.id)}">View results</a>
-        <button class="text-button danger-text" type="button" data-action="delete-drill">Delete</button>
+        <button class="text-button danger-text" type="button" data-action="delete-drill">Delete drill</button>
       </div>
     </article>`;
 };
@@ -140,9 +142,9 @@ const renderLibrary = (): string => `
       <div class="hero-actions">
         <a class="button primary large" href="/demo" data-action="open-demo">Try it with sample data</a>
         <span class="action-note">Open a three-choice practice drill.</span>
-        <button class="button large" type="button" data-action="new-drill">Build a drill</button>
       </div>
-      <ul class="local-note"><li>Your drills stay in this browser.</li><li>Works offline after your first visit.</li><li>Free to try with sample data.</li></ul>
+      <ul class="local-note"><li>Your drills stay in this browser.</li><li>The sample works offline after your first visit.</li><li>The sample opens without payment.</li></ul>
+      <button class="hero-secondary text-button" type="button" data-action="new-drill">Build a drill</button>
     </div>
     <figure class="hero-figure">
       <picture>
@@ -155,7 +157,7 @@ const renderLibrary = (): string => `
   <section class="library-section" aria-labelledby="your-drills">
     <div class="section-heading">
       <div><p class="eyebrow">Your board</p><h2 id="your-drills">Your decision drills</h2></div>
-      <button class="button" type="button" data-action="new-drill">+ New drill</button>
+      <button class="button" type="button" data-action="new-drill">Create drill</button>
     </div>
     ${data.drills.length ? `<div class="drill-grid">${data.drills.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(drillCard).join('')}</div>` : `
       <div class="empty-state">
@@ -191,7 +193,7 @@ const renderEditor = (drill: Drill): string => {
   return `
     <section class="editor-head">
       <div><p class="eyebrow">Author mode · Saves as you work</p><h1>Edit drill</h1></div>
-      <div class="editor-actions"><a class="button" href="/drills">Done</a><a class="button primary" href="${href('play', drill.id)}">Preview drill</a></div>
+      <div class="editor-actions"><a class="button" href="/drills">Return to drills</a><a class="button primary" href="${href('play', drill.id)}">Preview drill</a></div>
     </section>
     <section class="drill-meta" data-drill-id="${drill.id}">
       <div class="field"><label for="drill-title">Drill title</label><input id="drill-title" data-field="drill-title" value="${escapeHtml(drill.title)}" /></div>
@@ -206,7 +208,7 @@ const renderEditor = (drill: Drill): string => {
         <button class="button full-width" type="button" data-action="add-node">+ Add decision</button>
       </aside>
       ${node ? `<section class="node-sheet" data-node-id="${node.id}" aria-labelledby="node-sheet-title">
-        <div class="sheet-heading"><div><p class="eyebrow">Decision ${drill.nodes.findIndex((item) => item.id === node.id) + 1}</p><h2 id="node-sheet-title">Build this moment</h2></div><div class="sheet-tools">${node.id !== drill.startNodeId ? '<button class="text-button" type="button" data-action="set-start">Make start</button>' : '<span class="start-label">Start node</span>'}<button class="text-button danger-text" type="button" data-action="delete-node">Delete</button></div></div>
+        <div class="sheet-heading"><div><p class="eyebrow">Decision ${drill.nodes.findIndex((item) => item.id === node.id) + 1}</p><h2 id="node-sheet-title">Build this moment</h2></div><div class="sheet-tools">${node.id !== drill.startNodeId ? '<button class="text-button" type="button" data-action="set-start">Make this the start</button>' : '<span class="start-label">Start node</span>'}<button class="text-button danger-text" type="button" data-action="delete-node">Delete decision</button></div></div>
         <div class="field full"><label for="node-prompt">What is happening? <span>Ask for a decision, not a fact.</span></label><textarea id="node-prompt" data-field="node-prompt" rows="4">${escapeHtml(node.prompt)}</textarea></div>
         <div class="image-field">
           ${safeImageSrc(node.image) ? `<img src="${safeImageSrc(node.image)}" alt="Scenario reference uploaded for this decision" width="640" height="360" /><button type="button" class="text-button danger-text" data-action="remove-image">Remove image</button>` : '<div class="image-placeholder" aria-hidden="true"><span>＋</span> Optional scene photo</div>'}
@@ -237,7 +239,10 @@ const beginPlayer = (drill: Drill): void => {
 const orderedChoices = (drill: Drill, node: DrillNode): typeof node.choices => {
   if (!player) return node.choices;
   if (!player.choiceOrder[node.id]) {
-    player.choiceOrder[node.id] = (drill.shuffleChoices ? shuffle(node.choices) : node.choices).map((choice) => choice.id);
+    let ids = (drill.shuffleChoices ? shuffle(node.choices) : node.choices).map((choice) => choice.id);
+    const previous = previousChoiceOrder[node.id];
+    if (drill.shuffleChoices && ids.length > 1 && previous?.join('|') === ids.join('|')) ids = [...ids.slice(1), ids[0]!];
+    player.choiceOrder[node.id] = ids;
   }
   return player.choiceOrder[node.id]!.map((id) => node.choices.find((choice) => choice.id === id)).filter(Boolean) as typeof node.choices;
 };
@@ -271,7 +276,7 @@ const renderPlayer = (drill: Drill): string => {
         <div class="score-stamp"><strong>${score}%</strong><span>strong decisions</span></div>
         <p class="first-choice ${first ? 'good' : 'needs-work'}"><span>${first ? '✓' : '↺'}</span> First decision: ${first ? 'strong' : 'worth another replay'}</p>
         <div class="debrief-card"><h2>Coach debrief</h2><p>${escapeHtml(drill.description || 'Review the consequences, then replay with a different route.')}</p></div>
-        <div class="completion-actions"><button class="button primary large" type="button" data-action="replay">Replay with shuffled choices</button>${demoMode ? `<button class="button large" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export sample CSV</button>` : `<a class="button large" href="${href('insights', drill.id)}">See progress</a>`}<a class="text-link" href="/drills">Back to drills</a></div>
+        <div class="completion-actions"><button class="button primary large" type="button" data-action="replay">Replay with shuffled choices</button>${demoMode ? `<button class="button large" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export sample CSV</button><a class="button large" href="${href('insights', drill.id)}?demo=1">View sample results</a>` : `<a class="button large" href="${href('insights', drill.id)}">See progress</a>`}<a class="text-link" href="/drills">Back to drills</a></div>
       </section>`;
   }
   const node = drill.nodes.find((item) => item.id === player!.nodeId) ?? drill.nodes[0]!;
@@ -329,7 +334,7 @@ const renderData = (): string => `
     <p class="eyebrow">Ownership, not lock-in</p><h1>Your data stays yours.</h1>
     <p class="lede">Your drills, photos, and attempts stay in this browser. Export a backup before clearing browser data or moving devices.</p>
     <div class="data-actions">
-      <section><span class="route-dot">↓</span><div><h2>Export everything</h2><p>Download drills and attempt history as one JSON backup. This is always available, including on the free tier.</p><button class="button primary" type="button" data-action="export-json">Export JSON backup</button></div></section>
+      <section><span class="route-dot">↓</span><div><h2>Export everything</h2><p>Download drills and attempt history as one JSON backup.</p><button class="button primary" type="button" data-action="export-json">Export JSON backup</button></div></section>
       <section><span class="route-dot blue">↑</span><div><h2>Import a backup</h2><p>Import replaces the current data on this device after confirmation.</p><label class="button" for="import-file">Choose JSON backup</label><input class="sr-only" type="file" id="import-file" accept="application/json,.json" data-action="import-json" /></div></section>
     </div>
     <div class="storage-facts"><h2>What is stored</h2><ul><li>Drill text and uploaded scenario images</li><li>Each completed attempt and selected coaching tags</li></ul><p><a href="/privacy">Read the full privacy notice</a></p></div>
@@ -342,10 +347,14 @@ const renderStorageError = (error: unknown): string => {
   return `<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" data-action="reload">Reload app</button></section>`;
 };
 
-const renderUpgrade = (): string => '<section class="upgrade-page narrow"><p class="eyebrow">Available today</p><h1>Build as many private drills as you need.</h1><p class="lede">This release includes full authoring, replay, reports, and exports at no cost.</p><a class="button primary" href="/drills">Open your drill board</a></section>';
-
 const renderAbout = (): string => `
-  <section class="narrow about-page"><p class="eyebrow">Why this exists</p><h1>Practice real decisions.</h1><p class="lede">Coaches and self-learners can rehearse choices from real situations.</p><h2>Built for honest rehearsal</h2><ul><li>Practice does not certify real-world competence.</li><li>Sample content avoids hazardous procedure advice.</li><li>No accounts, ads, or tracking.</li></ul><h2>Artwork provenance</h2><p>The paper-board illustration was made for this product with the Param Factory image model on August 28, 2026.</p><a class="button primary" href="/drills">Open your drill board</a></section>`;
+  <section class="narrow about-page"><p class="eyebrow">Why this exists</p><h1>Practise real decisions.</h1><p class="lede">Coaches and self-learners can rehearse choices from real situations.</p><h2>Built for honest rehearsal</h2><ul><li>Practice does not certify real-world competence.</li><li>The sample uses a creative-project handoff.</li><li>The app has no account or advertising code.</li></ul><h2>Artwork provenance</h2><p>The original paper-board illustration was generated for this product. Its source and prompt are in the repository.</p><a class="button primary" href="/drills">Open your drill board</a></section>`;
+
+const renderPrivacy = (): string => `
+  <section class="narrow legal-page"><p class="eyebrow">Effective August 28, 2026</p><h1>Your drills stay yours.</h1><p class="lede">No account or advertising code. Your content stays in browser storage unless you export it.</p><h2>Data stored in this browser</h2><p>The app stores drill text, scenario images, feedback, hints, notes, and completed choices in browser storage.</p><h2>Data sent over the network</h2><p>Normal use sends no drill or attempt content away from this site. Demo data uses separate browser storage.</p><h2>Images and exports</h2><p>The app resizes scenario images in this browser. It also creates JSON and CSV files here.</p><h2>Retention and deletion</h2><p>Data remains until you delete a drill, clear site storage, or import a replacement backup.</p><h2>Your choices</h2><p>Export a backup before clearing storage. For privacy questions, email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p></section>`;
+
+const renderTerms = (): string => `
+  <section class="narrow legal-page"><p class="eyebrow">Effective August 28, 2026</p><h1>Terms in plain language.</h1><p class="lede">This tool supports scenario rehearsal. It does not replace qualified instruction or certify competence.</p><h2>Using the app</h2><p>You may author and replay lawful training scenarios. You are responsible for your content and uploaded images.</p><h2>No professional warranty</h2><p>The software is provided “as is”. Scores describe responses inside an authored drill only.</p><h2>Your data and backups</h2><p>Export backups before clearing storage, changing devices, or resetting a browser. See the <a href="/privacy">privacy notice</a>.</p><h2>Acceptable use</h2><p>Do not present drill scores as certification. Questions may be sent to <a href="mailto:support@sociobot.in">support@sociobot.in</a>.</p></section>`;
 
 const notFound = (): string => '<section class="narrow error-panel"><p class="eyebrow">Route not found</p><h1>That branch is missing.</h1><p>Use the drill board to choose a working route.</p><a class="button primary" href="/drills">Return to drills</a></section>';
 
@@ -357,8 +366,9 @@ const routeDetails = (current: Route): { title: string; description: string; ann
     play: { title: 'Skill Decision Drills — Run a practice drill', description: 'Rehearse choices from a real situation.', announcement: 'Practice drill' },
     insights: { title: 'Skill Decision Drills — Replay insights', description: 'Review local practice results.', announcement: 'Replay insights' },
     data: { title: 'Skill Decision Drills — Your data', description: 'Export or restore your browser-stored drills.', announcement: 'Your data' },
-    upgrade: { title: 'Skill Decision Drills — Full authoring', description: 'Create private decision drills.', announcement: 'Full authoring' },
     about: { title: 'About — Skill Decision Drills', description: 'Learn what this rehearsal tool does and does not do.', announcement: 'About Skill Decision Drills' },
+    privacy: { title: 'Privacy — Skill Decision Drills', description: 'Privacy notice for Skill Decision Drills.', announcement: 'Privacy' },
+    terms: { title: 'Terms — Skill Decision Drills', description: 'Terms for Skill Decision Drills.', announcement: 'Terms' },
     '404': { title: 'Page not found — Skill Decision Drills', description: 'Choose a working route from the drill board.', announcement: 'Page not found' }
   };
   return details[current.page] ?? details['404'];
@@ -401,8 +411,9 @@ const render = (announce = false): void => {
     content = drill ? renderPlayer(drill) : notFound();
   } else if (current.page === 'insights') content = renderInsights(current.id);
   else if (current.page === 'data') content = renderData();
-  else if (current.page === 'upgrade') content = renderUpgrade();
   else if (current.page === 'about') content = renderAbout();
+  else if (current.page === 'privacy') content = renderPrivacy();
+  else if (current.page === 'terms') content = renderTerms();
   else content = notFound();
   app.innerHTML = shell(content);
   setMetadata(current);
@@ -471,6 +482,7 @@ document.addEventListener('click', async (event) => {
   }
   if (action === 'start-real') {
     event.preventDefault();
+    await store.clear();
     window.location.assign('/');
     return;
   }
@@ -599,7 +611,11 @@ document.addEventListener('click', async (event) => {
   if (action === 'finish-drill' && context) { await completePlayer(context.drill); render(); }
   if (action === 'replay') {
     const drill = data.drills.find((item) => item.id === player?.drillId);
-    if (drill) { beginPlayer(drill); render(); }
+    if (drill) {
+      previousChoiceOrder = { ...player?.choiceOrder };
+      beginPlayer(drill);
+      render();
+    }
   }
   if (action === 'export-json') {
     download(`decision-drills-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ ...data, exportedAt: new Date().toISOString(), version: 1 }, null, 2), 'application/json');

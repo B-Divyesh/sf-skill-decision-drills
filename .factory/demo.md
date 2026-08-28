@@ -8,4 +8,4 @@ Demo drills and attempts use the `demo:skill-decision-drills` IndexedDB
 database and the `demo:sdd_initialized` localStorage key. Normal use uses
 `skill-decision-drills` and `sdd_initialized`. The two namespaces never read
 or write each other. Reset replaces only the demo database with the shipped
-sample. Start for real reloads `/` and leaves the demo namespace behind.
+sample. Start for real clears the demo records and key before loading `/`.
