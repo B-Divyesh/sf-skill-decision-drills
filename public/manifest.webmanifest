@@ -1,0 +1,16 @@
+{
+  "id": "/?source=pwa",
+  "name": "Skill Decision Drills",
+  "short_name": "Drill Board",
+  "description": "Author and replay branching decisions. Local-first and offline.",
+  "start_url": "/?v=1#/library",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3eedc",
+  "theme_color": "#f3eedc",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

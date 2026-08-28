@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Three branching decision paths">
+  <rect width="512" height="512" rx="48" fill="#f3eedc"/>
+  <rect x="50" y="50" width="412" height="412" rx="8" fill="#fffdf5" stroke="#17211b" stroke-width="20"/>
+  <path d="M256 128v92M256 220L142 330M256 220l114 110" fill="none" stroke="#17211b" stroke-width="34" stroke-linecap="square"/>
+  <circle cx="256" cy="117" r="52" fill="#ff5c35" stroke="#17211b" stroke-width="18"/>
+  <rect x="88" y="316" width="108" height="108" fill="#4c72ff" stroke="#17211b" stroke-width="18"/>
+  <path d="M370 310l65 114H305z" fill="#b9e633" stroke="#17211b" stroke-width="18" stroke-linejoin="round"/>
+</svg>
