@@ -1,5 +1,5 @@
 import './styles.css';
-import { accuracy, misconceptionCounts, newChoice, newDrill, newNode, parseImport, shuffle, uid, validateDrill } from './model';
+import { accuracy, AppDataValidationError, misconceptionCounts, newChoice, newDrill, newNode, parseImport, shuffle, uid, validateDrill } from './model';
 import { captureLicenseFromUrl, checkoutUrl, getLicenseState, restoreLicense, verifyLicense } from './license';
 import { LocalStore } from './storage';
 import type { AppData, Attempt, Drill, DrillNode, LicenseState, Selection } from './types';
@@ -13,6 +13,7 @@ let license: LicenseState = getLicenseState();
 let selectedNodeId = '';
 let statusMessage = '';
 let errorMessage = '';
+let fatalStorageError: unknown = null;
 
 type PlayerSession = {
   drillId: string;
@@ -306,6 +307,13 @@ const renderData = (): string => `
     <div class="storage-facts"><h2>What is stored</h2><ul><li>Drill text and uploaded scenario images</li><li>Each completed attempt and selected misconception tags</li><li>A license token and daily verification timestamp, if you unlock</li></ul><p><a href="/privacy/">Read the full privacy notice</a></p></div>
   </section>`;
 
+const renderStorageError = (error: unknown): string => {
+  if (error instanceof AppDataValidationError) {
+    return `<section class="narrow error-panel"><p class="eyebrow">Recovery needed</p><h1>Saved data needs repair.</h1><p>${escapeHtml(error.message)}</p><p>Download the unreadable records for safekeeping, then reset this device to reopen the app with the safe starter drill.</p><div class="hero-actions"><button class="button" type="button" data-action="export-recovery">Download recovery copy</button><button class="button primary" type="button" data-action="reset-local-data">Reset local drills</button></div><p><small>Reset deletes all drills and attempt history on this device. A confirmation appears first.</small></p></section>`;
+  }
+  return `<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" data-action="reload">Reload app</button></section>`;
+};
+
 const renderUpgrade = (): string => `
   <section class="upgrade-page narrow">
     <p class="eyebrow">One-time license · No learner seats</p><h1>${license.unlocked ? 'Full authoring is unlocked.' : 'Keep every scenario in one kit.'}</h1>
@@ -326,6 +334,11 @@ const renderAbout = (): string => `
 const notFound = (): string => '<section class="narrow error-panel"><p class="eyebrow">Route not found</p><h1>That branch is missing.</h1><p>The drill may have been deleted on this device.</p><a class="button primary" href="#/library">Return to drills</a></section>';
 
 const render = (): void => {
+  if (fatalStorageError) {
+    app.innerHTML = shell(renderStorageError(fatalStorageError));
+    document.title = `${fatalStorageError instanceof AppDataValidationError ? 'Saved data needs repair' : 'Storage error'} — Skill Decision Drills`;
+    return;
+  }
   const current = route();
   let content = '';
   if (current.page === 'library') content = renderLibrary();
@@ -388,6 +401,30 @@ document.addEventListener('click', async (event) => {
   const target = (event.target as Element).closest<HTMLElement>('[data-action]');
   if (!target) return;
   const action = target.dataset.action;
+  if (action === 'export-recovery') {
+    try {
+      download(`decision-drills-recovery-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await store.getRawAll(), null, 2), 'application/json');
+      setStatus('Recovery copy downloaded.');
+    } catch {
+      setStatus('The recovery copy could not be downloaded. Try again before resetting.', true);
+    }
+    return;
+  }
+  if (action === 'reset-local-data') {
+    if (!confirm('Reset every local drill and attempt on this device? This cannot be undone unless you downloaded a recovery copy.')) return;
+    try {
+      data = await store.reset();
+      fatalStorageError = null;
+      player = null;
+      selectedNodeId = '';
+      setStatus('Local data reset. The safe starter drill is ready.');
+      window.location.hash = '#/library';
+      render();
+    } catch {
+      setStatus('Local data could not be reset. Check browser storage permissions and try again.', true);
+    }
+    return;
+  }
   if (action === 'new-drill') {
     if (!license.unlocked && data.drills.length >= 2) {
       window.location.hash = '#/upgrade';
@@ -597,7 +634,9 @@ const initialize = async (): Promise<void> => {
     void registerServiceWorker();
     void verifyLicense().then((state) => { license = state; render(); });
   } catch (error) {
-    app.innerHTML = shell(`<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" data-action="reload">Reload app</button></section>`);
+    fatalStorageError = error;
+    app.innerHTML = shell(renderStorageError(error));
+    void registerServiceWorker();
   }
 };
 

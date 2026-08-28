@@ -1,4 +1,4 @@
-import { starterDrill } from './model';
+import { starterDrill, validateAppData } from './model';
 import type { AppData, Attempt, Drill } from './types';
 
 const DB_NAME = 'skill-decision-drills';
@@ -39,12 +39,16 @@ export class LocalStore {
     }
   }
 
-  async getAll(): Promise<AppData> {
+  async getRawAll(): Promise<unknown> {
     const db = await this.dbPromise;
     const transaction = db.transaction([DRILLS, ATTEMPTS], 'readonly');
-    const drills = await requestValue(transaction.objectStore(DRILLS).getAll()) as Drill[];
-    const attempts = await requestValue(transaction.objectStore(ATTEMPTS).getAll()) as Attempt[];
+    const drills = await requestValue(transaction.objectStore(DRILLS).getAll()) as unknown[];
+    const attempts = await requestValue(transaction.objectStore(ATTEMPTS).getAll()) as unknown[];
     return { drills, attempts };
+  }
+
+  async getAll(): Promise<AppData> {
+    return validateAppData(await this.getRawAll(), 'saved data');
   }
 
   async putDrill(drill: Drill): Promise<void> {
@@ -71,13 +75,20 @@ export class LocalStore {
   }
 
   async replaceAll(data: AppData): Promise<void> {
+    const safeData = validateAppData(data, 'backup');
     const db = await this.dbPromise;
     const transaction = db.transaction([DRILLS, ATTEMPTS], 'readwrite');
     transaction.objectStore(DRILLS).clear();
     transaction.objectStore(ATTEMPTS).clear();
-    data.drills.forEach((drill) => transaction.objectStore(DRILLS).put(drill));
-    data.attempts.forEach((attempt) => transaction.objectStore(ATTEMPTS).put(attempt));
+    safeData.drills.forEach((drill) => transaction.objectStore(DRILLS).put(drill));
+    safeData.attempts.forEach((attempt) => transaction.objectStore(ATTEMPTS).put(attempt));
     await transactionDone(transaction);
     localStorage.setItem('sdd_initialized', 'yes');
+  }
+
+  async reset(): Promise<AppData> {
+    const cleanData = { drills: [starterDrill()], attempts: [] };
+    await this.replaceAll(cleanData);
+    return cleanData;
   }
 }

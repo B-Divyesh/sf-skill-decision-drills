@@ -1,5 +1,147 @@
 import type { AppData, Attempt, Choice, Drill, DrillNode } from './types';
 
+type UnknownRecord = Record<string, unknown>;
+
+export class AppDataValidationError extends Error {
+  constructor(source: 'backup' | 'saved data', detail: string) {
+    super(`${source === 'backup' ? 'This backup' : 'Your saved data'} is not safe to open: ${detail}`);
+    this.name = 'AppDataValidationError';
+  }
+}
+
+const recordAt = (value: unknown, path: string, source: 'backup' | 'saved data'): UnknownRecord => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppDataValidationError(source, `${path} must be an object.`);
+  }
+  return value as UnknownRecord;
+};
+
+const stringAt = (record: UnknownRecord, key: string, path: string, source: 'backup' | 'saved data'): string => {
+  if (typeof record[key] !== 'string') {
+    throw new AppDataValidationError(source, `${path}.${key} must be a string.`);
+  }
+  return record[key] as string;
+};
+
+const booleanAt = (record: UnknownRecord, key: string, path: string, source: 'backup' | 'saved data'): boolean => {
+  if (typeof record[key] !== 'boolean') {
+    throw new AppDataValidationError(source, `${path}.${key} must be true or false.`);
+  }
+  return record[key] as boolean;
+};
+
+const arrayAt = (record: UnknownRecord, key: string, path: string, source: 'backup' | 'saved data'): unknown[] => {
+  if (!Array.isArray(record[key])) {
+    throw new AppDataValidationError(source, `${path}.${key} must be an array.`);
+  }
+  return record[key] as unknown[];
+};
+
+const uniqueId = (id: string, seen: Set<string>, path: string, source: 'backup' | 'saved data'): void => {
+  if (!id.trim()) throw new AppDataValidationError(source, `${path} must not be empty.`);
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) {
+    throw new AppDataValidationError(source, `${path} contains unsupported characters.`);
+  }
+  if (seen.has(id)) throw new AppDataValidationError(source, `${path} is duplicated.`);
+  seen.add(id);
+};
+
+export const validateAppData = (value: unknown, source: 'backup' | 'saved data' = 'backup'): AppData => {
+  const root = recordAt(value, 'data', source);
+  const rawDrills = arrayAt(root, 'drills', 'data', source);
+  const rawAttempts = arrayAt(root, 'attempts', 'data', source);
+  const drillIds = new Set<string>();
+
+  const drills = rawDrills.map((rawDrill, drillIndex): Drill => {
+    const path = `drills[${drillIndex}]`;
+    const drill = recordAt(rawDrill, path, source);
+    const id = stringAt(drill, 'id', path, source);
+    uniqueId(id, drillIds, `${path}.id`, source);
+    const title = stringAt(drill, 'title', path, source);
+    const description = stringAt(drill, 'description', path, source);
+    const createdAt = stringAt(drill, 'createdAt', path, source);
+    const updatedAt = stringAt(drill, 'updatedAt', path, source);
+    const startNodeId = stringAt(drill, 'startNodeId', path, source);
+    const shuffleChoices = booleanAt(drill, 'shuffleChoices', path, source);
+    const nodeIds = new Set<string>();
+    const rawNodes = arrayAt(drill, 'nodes', path, source);
+
+    const nodes = rawNodes.map((rawNode, nodeIndex): DrillNode => {
+      const nodePath = `${path}.nodes[${nodeIndex}]`;
+      const node = recordAt(rawNode, nodePath, source);
+      const nodeId = stringAt(node, 'id', nodePath, source);
+      uniqueId(nodeId, nodeIds, `${nodePath}.id`, source);
+      const prompt = stringAt(node, 'prompt', nodePath, source);
+      const hint = stringAt(node, 'hint', nodePath, source);
+      const debrief = stringAt(node, 'debrief', nodePath, source);
+      if (node.image !== undefined && typeof node.image !== 'string') {
+        throw new AppDataValidationError(source, `${nodePath}.image must be a string when present.`);
+      }
+      const choiceIds = new Set<string>();
+      const choices = arrayAt(node, 'choices', nodePath, source).map((rawChoice, choiceIndex): Choice => {
+        const choicePath = `${nodePath}.choices[${choiceIndex}]`;
+        const choice = recordAt(rawChoice, choicePath, source);
+        const choiceId = stringAt(choice, 'id', choicePath, source);
+        uniqueId(choiceId, choiceIds, `${choicePath}.id`, source);
+        const nextNodeId = choice.nextNodeId;
+        if (nextNodeId !== null && typeof nextNodeId !== 'string') {
+          throw new AppDataValidationError(source, `${choicePath}.nextNodeId must be a string or null.`);
+        }
+        return {
+          id: choiceId,
+          label: stringAt(choice, 'label', choicePath, source),
+          consequence: stringAt(choice, 'consequence', choicePath, source),
+          nextNodeId,
+          isCorrect: booleanAt(choice, 'isCorrect', choicePath, source),
+          misconception: stringAt(choice, 'misconception', choicePath, source)
+        };
+      });
+      return { id: nodeId, prompt, hint, debrief, choices, ...(node.image === undefined ? {} : { image: node.image }) };
+    });
+
+    if (nodes.length ? !nodeIds.has(startNodeId) : startNodeId !== '') {
+      throw new AppDataValidationError(source, `${path}.startNodeId must identify a decision in this drill.`);
+    }
+    nodes.forEach((node, nodeIndex) => node.choices.forEach((choice, choiceIndex) => {
+      if (choice.nextNodeId !== null && !nodeIds.has(choice.nextNodeId)) {
+        throw new AppDataValidationError(source, `${path}.nodes[${nodeIndex}].choices[${choiceIndex}].nextNodeId identifies a missing decision.`);
+      }
+    }));
+    return { id, title, description, createdAt, updatedAt, startNodeId, shuffleChoices, nodes };
+  });
+
+  const attemptIds = new Set<string>();
+  const attempts = rawAttempts.map((rawAttempt, attemptIndex): Attempt => {
+    const path = `attempts[${attemptIndex}]`;
+    const attempt = recordAt(rawAttempt, path, source);
+    const id = stringAt(attempt, 'id', path, source);
+    uniqueId(id, attemptIds, `${path}.id`, source);
+    const drillId = stringAt(attempt, 'drillId', path, source);
+    if (!drillIds.has(drillId)) {
+      throw new AppDataValidationError(source, `${path}.drillId identifies a missing drill.`);
+    }
+    const selections = arrayAt(attempt, 'selections', path, source).map((rawSelection, selectionIndex) => {
+      const selectionPath = `${path}.selections[${selectionIndex}]`;
+      const selection = recordAt(rawSelection, selectionPath, source);
+      return {
+        nodeId: stringAt(selection, 'nodeId', selectionPath, source),
+        choiceId: stringAt(selection, 'choiceId', selectionPath, source),
+        correct: booleanAt(selection, 'correct', selectionPath, source),
+        misconception: stringAt(selection, 'misconception', selectionPath, source)
+      };
+    });
+    return {
+      id,
+      drillId,
+      startedAt: stringAt(attempt, 'startedAt', path, source),
+      completedAt: stringAt(attempt, 'completedAt', path, source),
+      selections
+    };
+  });
+
+  return { drills, attempts };
+};
+
 export const uid = (prefix: string): string =>
   `${prefix}_${crypto.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(16).slice(2)}`}`;
 
@@ -136,16 +278,11 @@ export const misconceptionCounts = (attempts: Attempt[]): Array<[string, number]
 };
 
 export const parseImport = (raw: string): AppData => {
-  const parsed: unknown = JSON.parse(raw);
-  if (!parsed || typeof parsed !== 'object') throw new Error('This is not a Skill Decision Drills export.');
-  const candidate = parsed as Partial<AppData>;
-  if (!Array.isArray(candidate.drills) || !Array.isArray(candidate.attempts)) {
-    throw new Error('The file must contain drills and attempts arrays.');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('That file is not valid JSON. Choose a Skill Decision Drills backup.');
   }
-  candidate.drills.forEach((drill) => {
-    if (!drill || typeof drill.id !== 'string' || !Array.isArray(drill.nodes)) {
-      throw new Error('One or more drills are malformed.');
-    }
-  });
-  return candidate as AppData;
+  return validateAppData(parsed, 'backup');
 };
