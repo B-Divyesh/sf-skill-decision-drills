@@ -149,6 +149,9 @@ ID: `7ab2b323-f2c3-4b6b-b7d6-44d07e1b246a`.
 - Live factory URL verifier: HTTP 200 in 821 ms, no console/page errors,
   correct title/lang, one h1/main, 0 missing image alternatives, and 0 unnamed
   buttons.
+- Fresh live Chromium at 390 px confirmed one skip link, Tab/Enter route and
+  focus preservation, no 200%-text horizontal overflow, and no console/page
+  errors.
 - Live and local `index.html` SHA-256:
   `b245223779e87fe72ef8f8b5d37940be2369e98225ae5799ea872795398c885f`.
 - Live and local `sw.js` SHA-256:
