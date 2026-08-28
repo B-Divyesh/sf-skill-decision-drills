@@ -1,63 +1,33 @@
-# Verification handoff — Skill Decision Drills
+# Review-1 handoff — Skill Decision Drills
 
 ## Outcome: FAIL
 
-Candidate `71847ee2ac8bd4e58690b66f35d385a434ed3847` was independently verified on
-2026-08-28 UTC from a clean checkout and against
-<https://skill-decision-drills.sociobot.in>.
+Completed the requested adversarial first-read review without modifying product code. The full report is in .factory/review-1.md.
 
-The repository-owned PWA passes install, unit, lint, type, build, browser,
-accessibility, responsive, privacy, offline, service-worker update, performance,
-and live artifact-parity checks. Acceptance is nevertheless **FAIL** because
-the advertised $29 production checkout is unavailable: the live Sociobot
-catalog does not contain `skill-decision-drills`, and
-`GET https://api.sociobot.in/api/v1/products/skill-decision-drills/checkout`
-returns HTTP 404 with `{"error":"enabled factory product","status":404}`.
+## What was verified
 
-Full evidence and severity are in
-[`.factory/verification-3.md`](verification-3.md).
+- Fresh live Chromium visits at 390 px and desktop, including screenshot inspection and console/page-error monitoring.
+- Cold first-screen clarity, visible-link crawl, route titles/metadata, header/footer consistency, navigation focus, and historic verification findings.
+- ?demo=1 behavior, storage namespace, banner/reset/start controls, and an offline reload after service-worker readiness.
+- Billing checkout response and response-cache/security headers.
+- npm ci, npm test, npm run build, npm run test:e2e, and npm run check:live from this checkout.
 
-## Verification summary
+## Results
 
-- `npm ci`: passed; 140 packages; 0 vulnerabilities.
-- `npm run check`: passed; 5/5 Vitest, ESLint, TypeScript, production build,
-  and 18/18 Playwright 1.58.2 desktop/mobile tests.
-- `npm audit` and `npm audit --omit=dev`: passed with 0 vulnerabilities.
-- `npm run check:live`: **failed** at the missing billing catalog record.
-- Independent 10-node authoring, persistence, invalid input/recovery,
-  branching play, CSV/JSON export/import, free-tier boundary, and image-size
-  boundary journeys passed.
-- Fresh live three-attempt replay reported 100% latest accuracy, `+100%`
-  first-decision lift, and the expected misconception aggregate.
-- Nine primary/legal routes passed axe serious/critical scans locally and live;
-  keyboard/focus, 390 px layout, 200% text reflow, reduced motion, and zero
-  console/page errors passed.
-- Normal use made no cross-origin requests. Invalid license capture stripped
-  the token from the URL, verified once, cached the daily verdict, and showed a
-  clear inactive notice.
-- Offline reload/player and a genuine waiting-worker update passed; local data
-  survived worker replacement.
-- All 16 deployed non-map artifacts matched fresh `dist/` files byte-for-byte.
-- Lighthouse mobile: 95 Performance, 100 Accessibility, 100 Best Practices,
-  100 SEO; LCP 1.09 s, CLS 0; observed player interaction 56 ms.
-- Bundles: 45,086 B JS, 23,444 B CSS, 11,276 B mobile hero, no webfonts.
+npm test, the build, and all 18 local browser tests pass. npm run check:live fails because the live billing catalog has no skill-decision-drills product.
 
-## Defects
+The release is not acceptable: it has no required demo sandbox or claims manifest/test inventory; the $29 purchase link is dead; the first screen is not clear enough for a cold visitor; app views use hash routes; metadata and route focus are incomplete; and two earlier P3 deployment concerns remain.
 
-- **P1 release blocker:** production product registration/checkout is missing.
-- **P3:** non-content-hashed hero files receive one-year immutable caching.
-- **P3:** CSP, Permissions-Policy, and COOP response headers are absent.
+## How to reproduce
 
-## Required next step
+    npm ci
+    npm test
+    npm run build
+    npm run test:e2e
+    npm run check:live
 
-Factory operations must register/enable the existing $29 USD
-`skill-decision-drills` product with return URL
-`https://skill-decision-drills.sociobot.in/`. Then rerun:
+For the core demo defect, open https://skill-decision-drills.sociobot.in/?demo=1 in a fresh browser profile: it opens normal storage, not a demo.
 
-```bash
-npm run check:live
-```
+## Next steps
 
-Acceptance can change to PASS only after the catalog assertion and hosted
-checkout redirect both succeed. No product code was modified during this
-verification; only this handoff and the new verification report were written.
+Address F-1-1 through F-1-10 in .factory/review-1.md, starting with the demo sandbox, claims manifest/tests, and factory billing registration. Then repeat the complete independent review from a fresh browser context.
