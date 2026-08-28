@@ -316,14 +316,15 @@ test('every route has the shared shell and no serious accessibility violations',
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', (error) => errors.push(error.message));
   for (const path of ['/', '/demo', '/drills', '/drills/starter_studio_handoff/edit', '/drills/starter_studio_handoff/play', '/insights', '/data', '/about', '/privacy', '/terms', '/not-a-route']) {
+    const errorsBefore = errors.length;
     await page.goto(path);
     await expect(page.locator('.brand-mark')).toHaveCount(1);
     await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link')).toHaveText(['Drills', 'Demo', 'Insights', 'Privacy']);
     await expect(page.locator('footer')).toContainText('Built by Param Factory · release 2');
     const scan = await new AxeBuilder({ page }).analyze();
     expect(scan.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? '')), path).toEqual([]);
+    if (path !== '/not-a-route') expect(errors.slice(errorsBefore), path).toEqual([]);
   }
-  expect(errors).toEqual([]);
 });
 
 test('keyboard skip link preserves the active drill and has a designed focus state', async ({ page }) => {
@@ -334,4 +335,17 @@ test('keyboard skip link preserves the active drill and has a designed focus sta
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('A teammate hands you');
+});
+
+test('loads without console errors when browser policy blocks service workers', async ({ browser }) => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Rehearse real decisions before you act.');
+  await page.waitForTimeout(250);
+  expect(errors).toEqual([]);
+  await context.close();
 });

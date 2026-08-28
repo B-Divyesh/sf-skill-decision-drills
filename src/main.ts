@@ -715,20 +715,25 @@ window.addEventListener('offline', () => render());
 
 const registerServiceWorker = async (): Promise<void> => {
   if (!('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.register('/sw.js');
-  serviceWorkerRegistration = registration;
-  if (registration.waiting) {
-    updateReady = true;
-    document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
-  }
-  registration.addEventListener('updatefound', () => {
-    registration.installing?.addEventListener('statechange', () => {
-      if (registration.waiting && navigator.serviceWorker.controller) {
-        updateReady = true;
-        document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
-      }
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    if (!registration) return;
+    serviceWorkerRegistration = registration;
+    if (registration.waiting) {
+      updateReady = true;
+      document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+    }
+    registration.addEventListener('updatefound', () => {
+      registration.installing?.addEventListener('statechange', () => {
+        if (registration.waiting && navigator.serviceWorker.controller) {
+          updateReady = true;
+          document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+        }
+      });
     });
-  });
+  } catch {
+    // Browser policy may disable service workers. The local app remains usable.
+  }
 };
 
 const initialize = async (): Promise<void> => {
