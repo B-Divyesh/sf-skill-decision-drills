@@ -1,52 +1,78 @@
-# Handoff — adversarial review 2
+# Handoff — perfection loop round 2
 
 ## Delivered
 
-Completed a fresh adversarial review of candidate
-`52ace9c296858a3843e695ebaf13fe2036589fc9` and wrote
-`.factory/review-2.md`. No product code was modified.
+All findings in `.factory/review-1.md`, `.factory/review-2.md`, earlier
+verification reports, and `.factory/polish-1.md` are closed. The product keeps
+its neo-brutalist field-board design and remains a static offline PWA.
 
-Verdict: **FAIL** with 18 findings. The live first screen and isolated demo now
-work, but in-app Privacy/Terms navigation is broken, the claims contract is
-incomplete, earlier metadata/chrome/copy findings are only partly fixed, the
-three required facts sit below the first viewport, the README claim-list command
-fails, and unknown routes return HTTP 200.
+The release now has a compact first screen, isolated one-click demo, complete
+claims contract, normal-data privacy proof, complete real routes and metadata,
+working legal navigation, shared legal chrome, focus announcements, and true
+HTTP 404 responses. Copy, README instructions, catalog text, and PWA status
+messages now match the tested behavior.
 
-## Verification performed
+Repair commits pushed to `main`:
 
-- Cold live Chromium contexts at 390 × 844 and 1440 × 900.
-- One-click live demo, changed-state Reset, Start for real, separate storage,
-  byte-for-byte normal-database preservation, same-origin request interception,
-  and offline reload/interaction.
-- Every `.factory/claims.json` command from clean clone
-  `/tmp/sdd-review2-H20DsV`; all six commands passed, with assertion gaps
-  documented in the review.
-- `npm test` passed 5/5; `npm run lint` passed; `npm run build` produced `dist/`;
-  `npm run test:e2e` passed 12/12.
-- `npm run check:live` passed; its direct-route scope misses the in-app
-  legal-link defect recorded in the review.
-- Live route/title/metadata inspection, same-origin href crawl, HTTP header and
-  missing-route checks, and axe scans of 11 routes at mobile and desktop sizes.
-  Axe found zero violations.
-- Every earlier review, polish, verification, and handoff document was read and
-  rechecked against live behavior and source.
+- `f9ff8af` — cumulative product, claims, copy, routing, and layout repairs.
+- `851b3e5` — valid Azure response-override configuration.
+- `3d89252` — true `/404` and arbitrary-path HTTP 404 behavior.
+- `fba4e2d` — clean fallback when service workers are blocked.
 
-## How to verify
+Production deployment ID: `24a418ed-0c37-4299-b9b3-b0f3d9ae1dbc`.
+
+## Verification evidence
+
+- `npm run check`: passed. Vitest 6/6, lint, typecheck/build, and Playwright
+  25/25 all passed.
+- Production build: `dist/index.html`; initial JS 47.57 kB raw / 15.50 kB
+  gzip; CSS 24.43 kB raw / 5.84 kB gzip.
+- Every one of 17 `.factory/claims.json` commands passed individually from
+  clean clone `/tmp/sdd-polish2-clean-kG1AN9`. The final aggregate clean-clone
+  claim run is recorded below.
+- Live Playwright at <https://skill-decision-drills.sociobot.in>: 9/9 selected
+  route, demo, offline, first-screen, 200% reflow, reduced-motion, mobile, and
+  axe checks passed. The blocked-service-worker console test also passed 1/1.
+- Live 390 × 844 first-screen bottoms: primary action 625 px, outcome 619 px,
+  facts 653/692/711 px. All are inside the 844 px viewport.
+- Live cold demo: Reset restored the first decision; Start for real left zero
+  demo drills, zero demo attempts, and no demo initialization key.
+- Live legal click: `/privacy`, correct title/H1, and H1 focus. The complete
+  route claim also covers Terms and browser Back announcement.
+- Live response checks: `/` 200, `/privacy` 200, `/terms` 200, `/404` 404,
+  arbitrary missing path 404. Security headers and hourly art revalidation are
+  present.
+- Live runtime: no external requests; no console or page errors on valid routes,
+  including a context where service workers are blocked.
+- Lighthouse mobile: performance 100, accessibility 100, best practices 100,
+  SEO 100, LCP 1.2 s, CLS 0, TBT 0 ms.
+- Evidence: `evidence/live/landing-mobile.png`,
+  `evidence/live/landing-desktop.png`, `evidence/live/demo-mobile.png`,
+  `evidence/live/privacy-desktop.png`, `evidence/live/404-desktop.png`, and
+  `evidence/live/lighthouse.json`.
+- Finding-by-finding mapping: `.factory/polish-2.md`.
+
+## Run and verify
 
 ```bash
 npm ci
-npm test
-npm run lint
-npm run build
-npm run test:e2e
+npm run check
+npm run test:claims
+npm run check:live
 ```
 
-Open `/`, click **Try it with sample data**, then click the footer Privacy and
-Terms links to reproduce the blocking route defect. See
-`.factory/review-2.md` for exact claim commands, evidence, copy counts, and
-concrete repairs.
+To run browser checks against production:
 
-## Product changes left
+```bash
+PLAYWRIGHT_BASE_URL=https://skill-decision-drills.sociobot.in npx playwright test
+```
 
-All 18 findings in `.factory/review-2.md` remain. This review work order did not
-authorize product-code changes.
+Deploy the built `dist/` directory with:
+
+```bash
+/opt/fleet/lib/deploy-static.sh skill-decision-drills dist
+```
+
+## Known gaps and next steps
+
+None. No review finding or severity is deferred.
