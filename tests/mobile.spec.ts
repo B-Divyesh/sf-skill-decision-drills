@@ -1,54 +1,40 @@
 import { expect, test } from '@playwright/test';
 
-test('keeps library and editor usable at 390px', async ({ page }) => {
-  await page.goto('/#/library');
-  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(horizontalOverflow).toBeLessThanOrEqual(1);
-  await page.getByRole('link', { name: 'Edit' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit drill');
-  await expect(page.getByRole('button', { name: '+ Add decision' })).toBeVisible();
-  await expect(page.getByLabel('What is happening? Ask for a decision, not a fact.')).toBeVisible();
+test('keeps the first screen clear and usable at 390px', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Rehearse real decisions before you act.');
+  await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
+  await expect(page.getByText('Open a three-choice practice drill.')).toBeVisible();
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test('keeps standalone targets at least 44px and reflows at 200% text size', async ({ page }) => {
-  await page.goto('/#/library');
-  const targets = [
-    page.getByRole('link', { name: 'Skill Decision Drills home' }),
-    page.getByRole('link', { name: 'View results' }),
-    page.getByRole('link', { name: 'Privacy' }),
-    page.getByRole('link', { name: 'Terms' }),
-    page.getByRole('link', { name: 'About' })
-  ];
-  for (const target of targets) {
+test('keeps the demo banner and touch targets usable at 390px', async ({ page }) => {
+  await page.goto('/?demo=1');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  for (const target of [page.getByRole('button', { name: 'Reset demo' }), page.getByRole('link', { name: 'Start for real' }), page.getByRole('button', { name: /Ask what “finished” means/ })]) {
     const box = await target.boundingBox();
-    expect(box, `missing target: ${await target.getAttribute('aria-label') ?? await target.textContent()}`).not.toBeNull();
-    expect(box!.width).toBeGreaterThanOrEqual(44);
-    expect(box!.height).toBeGreaterThanOrEqual(44);
+    expect(box).not.toBeNull();
+    expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
   }
-
-  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(horizontalOverflow).toBeLessThanOrEqual(1);
 });
 
-test('reflows every primary app view at 390px with 200% text', async ({ page }) => {
-  const routes = [
-    '/#/library',
-    '/#/edit/starter_studio_handoff',
-    '/#/play/starter_studio_handoff',
-    '/#/insights',
-    '/#/data',
-    '/#/upgrade',
-    '/#/about',
-    '/privacy/',
-    '/terms/'
-  ];
-
-  for (const route of routes) {
+test('reflows real routes and legal routes at 200% text size', async ({ page }) => {
+  for (const route of ['/', '/demo', '/drills', '/drills/starter_studio_handoff/edit', '/drills/starter_studio_handoff/play', '/insights', '/data', '/about', '/privacy/', '/terms/']) {
     await page.goto(route);
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(horizontalOverflow, route).toBeLessThanOrEqual(1);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, route).toBeLessThanOrEqual(1);
     await expect(page.locator('h1')).toHaveCount(1);
   }
+});
+
+test('removes motion when requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'auto');
+  expect(Number.parseFloat(await page.locator('.hero-copy').evaluate((node) => getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.00001);
 });

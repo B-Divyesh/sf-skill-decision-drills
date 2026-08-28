@@ -1,7 +1,6 @@
 import { starterDrill, validateAppData } from './model';
 import type { AppData, Attempt, Drill } from './types';
 
-const DB_NAME = 'skill-decision-drills';
 const DB_VERSION = 1;
 const DRILLS = 'drills';
 const ATTEMPTS = 'attempts';
@@ -11,8 +10,8 @@ const requestValue = <T>(request: IDBRequest<T>): Promise<T> => new Promise((res
   request.onerror = () => reject(request.error ?? new Error('Local database request failed.'));
 });
 
-const openDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
-  const request = indexedDB.open(DB_NAME, DB_VERSION);
+const openDatabase = (name: string): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+  const request = indexedDB.open(name, DB_VERSION);
   request.onupgradeneeded = () => {
     const db = request.result;
     if (!db.objectStoreNames.contains(DRILLS)) db.createObjectStore(DRILLS, { keyPath: 'id' });
@@ -29,13 +28,25 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> => new Prom
 });
 
 export class LocalStore {
-  private dbPromise = openDatabase();
+  readonly demo: boolean;
+  readonly databaseName: string;
+  private dbPromise: Promise<IDBDatabase>;
+
+  constructor(demo = false) {
+    this.demo = demo;
+    this.databaseName = `${demo ? 'demo:' : ''}skill-decision-drills`;
+    this.dbPromise = openDatabase(this.databaseName);
+  }
+
+  private get initializedKey(): string {
+    return `${this.demo ? 'demo:' : ''}sdd_initialized`;
+  }
 
   async initialize(): Promise<void> {
     const data = await this.getAll();
-    if (!data.drills.length && localStorage.getItem('sdd_initialized') !== 'yes') {
+    if (!data.drills.length && localStorage.getItem(this.initializedKey) !== 'yes') {
       await this.putDrill(starterDrill());
-      localStorage.setItem('sdd_initialized', 'yes');
+      localStorage.setItem(this.initializedKey, 'yes');
     }
   }
 
@@ -83,7 +94,7 @@ export class LocalStore {
     safeData.drills.forEach((drill) => transaction.objectStore(DRILLS).put(drill));
     safeData.attempts.forEach((attempt) => transaction.objectStore(ATTEMPTS).put(attempt));
     await transactionDone(transaction);
-    localStorage.setItem('sdd_initialized', 'yes');
+    localStorage.setItem(this.initializedKey, 'yes');
   }
 
   async reset(): Promise<AppData> {

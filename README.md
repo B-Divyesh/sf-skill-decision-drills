@@ -1,91 +1,56 @@
 # Skill Decision Drills
 
-Skill Decision Drills is a local-first PWA for coaches and self-learners who
-need to rehearse choices inside realistic scenarios—not memorize isolated
-facts. Authors build branching decision trees with prompts, optional photos,
-consequences, hint paths, misconception tags, and debrief notes. Learners can
-replay those routes with shuffled choices, while the coach sees first-decision
-improvement and aggregate misconceptions.
+Skill Decision Drills helps coaches and self-learners practise choices from real situations.
 
-Live product: <https://skill-decision-drills.sociobot.in>
+Try the isolated sample at <https://skill-decision-drills.sociobot.in/?demo=1>.
+It opens a three-choice practice drill.
 
-## What v1 includes
+## What it does
 
-- A complete visual drill editor with automatic IndexedDB persistence
-- Branching learner mode with hints, consequences, debriefs, and replay
-- Choice shuffling on every replay to reduce position memorization
-- Local attempt history, first-decision lift, and misconception counts
-- Schema-validated JSON backup/import, corrupt-data recovery, and aggregate CSV report export
-- Optional local scenario photos, resized in the browser
-- Installable PWA shell and explicit first-session offline coverage
-- A safe, non-hazardous “Studio handoff” starter drill
-- $29 one-time full-authoring unlock through the Sociobot billing API
-
-The free kit is intentionally useful: it includes two full drills, unlimited
-nodes, offline play, reporting, and all export/accessibility features. The paid
-license only removes the drill-count limit.
+- Create drills that save in this browser.
+- Let learners choose, see feedback, and replay.
+- Change choice order on replay.
+- See attempts and missed ideas.
+- Export a JSON backup or CSV report.
+- Add a scenario photo that stays in this browser.
+- Install the app and use the sample offline after the first visit.
 
 ## Run locally
 
-Requirements: Node.js 20 or newer and npm.
+Use Node.js 20 or newer.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
-
-Vite prints the local URL. Data is stored separately for each browser origin,
-so development data is not shared with the deployed site.
 
 ## Test and build
 
 ```bash
 npm test
 npm run lint
-npm run typecheck
 npm run build
 npm run test:e2e
-npm run check:live
 ```
 
-`npm run build` is the exact production build command. It writes the static
-site to `dist/`, with `dist/index.html` at the root. Playwright 1.58.2 is pinned
-and its tests cover authoring persistence, complete drill playback, insights,
-390 px layout and text reflow, privacy/terms routes, accessibility, a real
-offline reload, and service-worker update activation. `npm run check:live`
-confirms the canonical product identity, billing catalog record, hosted
-checkout redirect, CORS, and invalid-license response policy.
-
-For a local production preview:
+Run every listed claim test from a clean checkout:
 
 ```bash
-npm run preview
+node --input-type=module -e "for (const c of JSON.parse(await (await fetch('file://' + process.cwd() + '/.factory/claims.json')).text())) console.log(c.test)"
 ```
 
-## Architecture and privacy
+The build writes the site to `dist/`.
 
-The app uses Vite and framework-free TypeScript. IndexedDB stores drills and
-attempts; localStorage stores only initialization state and an optional license
-token/verdict. There is no account, analytics, ad code, third-party font, or
-runtime CDN. The only external runtime request is a daily license check when a
-license exists. See [`privacy/index.html`](privacy/index.html).
+## Privacy and safety
 
-The service worker precaches the built shell (including Vite's hashed JS/CSS),
-uses cache-first local assets, and treats the license API as network-first.
+No account, ads, or tracking are used in the demo flow.
+Your drills stay in browser storage unless you export them.
+Practice does not certify real-world competence.
+Use qualified instruction where mistakes could affect people, property, or rights.
 
-## Safety and product boundary
+Read the [privacy notice](privacy/index.html) and [terms](terms/index.html).
 
-This is a rehearsal aid, not a certification or assessment of real-world
-competence. Coaches remain responsible for their material and for qualified
-instruction where mistakes could affect health, safety, property, or rights.
-The bundled sample contains no hazardous procedural advice.
+## Design and license
 
-## Design and generated asset
-
-The neo-brutalist field-board system and image provenance are documented in
-[`design.md`](.factory/design.md). Source and prompt metadata for the original
-hero illustration are retained in `assets/src/`.
-
-## License
-
-MIT. See [`LICENSE`](LICENSE).
+See the [design notes](.factory/design.md) and [artwork source](assets/src/).
+MIT. See [LICENSE](LICENSE).

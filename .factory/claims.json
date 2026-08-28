@@ -1,0 +1,8 @@
+[
+  {"id":"demo-isolated","claim":"The sample demo is separate from real browser data.","where":"Demo banner and README","test":"npm run test:e2e -- --grep @claim:demo-isolated","sandbox":"Fresh browser context at /?demo=1; assert demo: IndexedDB and localStorage keys only."},
+  {"id":"offline-reload","claim":"The sample drill works offline after the first visit.","where":"Landing facts and README","test":"npm run test:e2e -- --grep @claim:offline-reload","sandbox":"Fresh browser context at /?demo=1; wait for service worker, disconnect network, reload."},
+  {"id":"local-only","claim":"The demo sends no data outside the product origin.","where":"Landing facts, privacy notice, README","test":"npm run test:e2e -- --grep @claim:local-only","sandbox":"Fresh browser context at /?demo=1; complete the shipped sample while recording requests."},
+  {"id":"csv-export","claim":"The sample report exports as CSV.","where":"Demo completion and README","test":"npm run test:e2e -- --grep @claim:csv-export","sandbox":"Fresh browser context at /?demo=1; complete the sample and assert the downloaded CSV header."},
+  {"id":"json-export","claim":"Browser data exports as a JSON backup.","where":"Your data page and README","test":"npm run test:e2e -- --grep @claim:json-export","sandbox":"Fresh browser context at /data; assert backup download filename and output."},
+  {"id":"real-routes","claim":"Each product screen has a real URL and concise title.","where":"Navigation and README","test":"npm run test:e2e -- --grep @claim:real-routes","sandbox":"Fresh browser context; use navigation and browser Back while asserting URL, title, focus, and route announcement."}
+]

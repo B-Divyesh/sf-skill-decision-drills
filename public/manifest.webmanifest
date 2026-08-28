@@ -3,7 +3,7 @@
   "name": "Skill Decision Drills",
   "short_name": "Drill Board",
   "description": "Author and replay branching decisions. Local-first and offline.",
-  "start_url": "/?v=1#/library",
+  "start_url": "/?v=2",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

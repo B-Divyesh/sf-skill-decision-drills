@@ -102,4 +102,5 @@ route-marker geometry.
 Generated with the factory image deployment (`factory-image`) on 2026-08-28.
 The source PNG and prompt sidecar are retained in `assets/src/`; optimized WebP
 is shipped in `public/assets/`. The generated image is original to this product.
-
+`decision-board-social.webp` is a hand-reviewed 1200×630 crop of that same
+original board artwork for Open Graph and Twitter previews.
