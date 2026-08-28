@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { existsSync, readFileSync } from 'node:fs';
 
 const demo = '/?demo=1';
+const productOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4174').origin;
 
 const downloadText = async (download: Download): Promise<string> => {
   const stream = await download.createReadStream();
@@ -107,7 +108,7 @@ test('@claim:offline-reload keeps the sample drill usable offline after a first 
 test('@claim:normal-local-only keeps authored text, photos, attempts, imports, exports, and deletion in this browser', async ({ page }) => {
   const external: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:4174') external.push(request.url());
+    if (new URL(request.url()).origin !== productOrigin) external.push(request.url());
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Create drill' }).click();
@@ -151,7 +152,7 @@ test('@claim:normal-local-only keeps authored text, photos, attempts, imports, e
 test('@claim:no-tracking loads every public route without analytics or third-party requests', async ({ page }) => {
   const external: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:4174') external.push(request.url());
+    if (new URL(request.url()).origin !== productOrigin) external.push(request.url());
   });
   for (const path of ['/', '/demo', '/drills', '/insights', '/data', '/about', '/privacy', '/terms']) await page.goto(path);
   expect(external).toEqual([]);
