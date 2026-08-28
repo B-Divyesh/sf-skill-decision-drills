@@ -1,55 +1,52 @@
-# Handoff — polish 1
+# Handoff — adversarial review 2
 
 ## Delivered
 
-Repair commit `ae623b2` replaces hash routes with real URLs, adds an isolated
-sample demo, a testable claims contract, plain first-screen copy, route-aware
-metadata/focus/404 behavior, matching legal-page chrome, hardened response
-headers, and the 1200×630 social preview crop. The distinct neo-brutalist
-field-board design and PWA/local-first deployment class remain intact.
+Completed a fresh adversarial review of candidate
+`52ace9c296858a3843e695ebaf13fe2036589fc9` and wrote
+`.factory/review-2.md`. No product code was modified.
 
-The unregistered paid checkout was removed with its drill limit. This is the
-honest available release: it does not advertise a purchase that cannot work.
+Verdict: **FAIL** with 18 findings. The live first screen and isolated demo now
+work, but in-app Privacy/Terms navigation is broken, the claims contract is
+incomplete, earlier metadata/chrome/copy findings are only partly fixed, the
+three required facts sit below the first viewport, the README claim-list command
+fails, and unknown routes return HTTP 200.
 
-## Verification
+## Verification performed
 
-- Fresh clone: `/tmp/sdd-clean-NYr2N4`
-  - `npm ci` passed (0 vulnerabilities)
-  - `npm test` passed: 5 tests
-  - `npm run build` passed; `dist/index.html` exists
-  - `npm run test:e2e -- --grep '@claim:'` passed: 6 claims
-- Repository gates: `npm test`, `npm run lint`, `npm run build`, and full
-  `npm run test:e2e` passed (12 Playwright tests).
-- Individual claim commands in `.factory/claims.json` were run. The first three
-  passed independently; CSV, JSON, and real-route commands also passed after
-  starting a local preview server.
-- Local factory verification: [verify.json](evidence/local/verify.json) reports
-  Demo title/lang, one H1/main, no missing alts or unlabeled buttons, and no
-  console errors. Screenshots: [desktop](evidence/local/screenshot-desktop.png)
-  and [mobile](evidence/local/screenshot-mobile.png).
-- Lighthouse mobile demo: Performance 100, Accessibility 100, Best Practices
-  96, SEO 100; LCP 1150 ms, CLS 0, TBT 0. Full JSON:
-  [report.json](evidence/lighthouse/report.json).
-- Live deploy: `https://skill-decision-drills.sociobot.in/?demo=1` was opened
-  cold after deployment. Factory verify passed in 653 ms with no console errors.
-  Live axe found zero serious/critical violations; [mobile screenshot](evidence/live/demo-mobile.png).
-  `npm run check:live` passed route/title/header checks.
+- Cold live Chromium contexts at 390 × 844 and 1440 × 900.
+- One-click live demo, changed-state Reset, Start for real, separate storage,
+  byte-for-byte normal-database preservation, same-origin request interception,
+  and offline reload/interaction.
+- Every `.factory/claims.json` command from clean clone
+  `/tmp/sdd-review2-H20DsV`; all six commands passed, with assertion gaps
+  documented in the review.
+- `npm test` passed 5/5; `npm run lint` passed; `npm run build` produced `dist/`;
+  `npm run test:e2e` passed 12/12.
+- `npm run check:live` passed; its direct-route scope misses the in-app
+  legal-link defect recorded in the review.
+- Live route/title/metadata inspection, same-origin href crawl, HTTP header and
+  missing-route checks, and axe scans of 11 routes at mobile and desktop sizes.
+  Axe found zero violations.
+- Every earlier review, polish, verification, and handoff document was read and
+  rechecked against live behavior and source.
 
-## How to run
+## How to verify
 
 ```bash
 npm ci
-npm run dev
 npm test
 npm run lint
 npm run build
 npm run test:e2e
 ```
 
-Use `/?demo=1` for a clean isolated sample. See `.factory/demo.md` and
-`.factory/claims.json` for the sandbox and claim commands.
+Open `/`, click **Try it with sample data**, then click the footer Privacy and
+Terms links to reproduce the blocking route defect. See
+`.factory/review-2.md` for exact claim commands, evidence, copy counts, and
+concrete repairs.
 
-## Known gaps
+## Product changes left
 
-None in the repository-owned product. The former billing registration is not
-used because the product no longer presents a paid purchase path.
+All 18 findings in `.factory/review-2.md` remain. This review work order did not
+authorize product-code changes.
