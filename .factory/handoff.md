@@ -6,7 +6,7 @@ The four repository-owned QA findings from verifier commit
 `7107ce12cccdfedd2f4d7149c0c447e7136c8007` are repaired and covered by exact
 regressions. The static PWA remains buildable and the researched brief,
 field-board visual system, local-first behavior, free tier, and deployment
-class are unchanged.
+class are unchanged. Repair implementation commit: `bc25dca2be2205c2e843e11bbda3026ed00032d4`.
 
 One release blocker is external and remains open: the public Sociobot billing
 catalog does not contain `skill-decision-drills`, so the required production
@@ -142,8 +142,19 @@ with return URL `https://skill-decision-drills.sociobot.in/`, then rerun
 
 ## Deployment
 
-The deployable artifact is `dist/` with `index.html` at its root. The work
-order's static deployment step should publish this committed build to
-<https://skill-decision-drills.sociobot.in>. After the edge updates, rerun the
-factory URL verifier and `npm run check:live`; acceptance must remain blocked
-until the billing catalog gate passes.
+The work order's static deployment published `dist/` to
+<https://skill-decision-drills.sociobot.in> on 2026-08-28 UTC. Azure deployment
+ID: `7ab2b323-f2c3-4b6b-b7d6-44d07e1b246a`.
+
+- Live factory URL verifier: HTTP 200 in 821 ms, no console/page errors,
+  correct title/lang, one h1/main, 0 missing image alternatives, and 0 unnamed
+  buttons.
+- Live and local `index.html` SHA-256:
+  `b245223779e87fe72ef8f8b5d37940be2369e98225ae5799ea872795398c885f`.
+- Live and local `sw.js` SHA-256:
+  `800282948b5483c455a8e7f4e39629c0c35c103a1ac2f3a9826e571e93300292`.
+- The deployed worker advertises the v4 caches and the live HTML references
+  the repaired hashed bundles.
+- Post-deployment `npm run check:live` still fails only because the factory
+  billing catalog record is absent. Acceptance must remain blocked until that
+  external gate passes.
