@@ -1,0 +1,30 @@
+{
+  "slug": "skill-decision-drills",
+  "title": "Skill Decision Drills",
+  "territory": "games-creative",
+  "user": "Coaches and self-learners in procedural skills who need to rehearse decisions from real scenarios, not memorize isolated facts.",
+  "evidence": [
+    {
+      "url": "https://hn.algolia.com/api/v1/items/48250814",
+      "date": "2026-05-23",
+      "quote_or_summary": "A programmer and climber describes a safety course whose classroom lecture was hard to understand, then asks whether games/cards could help learn new skills."
+    },
+    {
+      "url": "https://github.com/lichess-org/lila/issues/8118",
+      "date": "2025-06-19",
+      "quote_or_summary": "The 78-reaction Lichess feature request describes an opening trainer that varies opponent lines, accepts a learner's move, handles transpositions, and gives hints."
+    }
+  ],
+  "recurrence": "A concrete training-transfer complaint plus a 78-reaction request for branching deliberate practice demonstrate demand beyond linear flashcards.",
+  "current_workaround": "Rewatch lectures, memorize rules on cards, use instructor-led role-play, or build one-off scenario slides.",
+  "incumbents_and_gap": "Kahoot and generic quiz builders favor single-answer recall; chess opening trainers are domain-specific. Small instructors lack a reusable branching decision-drill format for their own safety, field, or process scenarios.",
+  "smallest_useful_product": "Offline scenario editor/player: author a decision tree with photo/text prompts, consequences, hint path, and debrief; replay with randomized branches and export aggregate misconception counts.",
+  "success_measure": "A coach authors one 10-node drill in under 30 minutes and learners improve correct first decisions by 25% between first and third attempt.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time",
+  "constraints": "Prominent disclaimer that drills do not replace qualified instruction; no hazardous procedure advice in bundled content; local data by default.",
+  "est_build_effort": "M",
+  "why_distinct": "It generalizes the useful branching-repertoire mechanic to learner-authored decisions rather than cloning a quiz app or chess trainer.",
+  "confidence": 4,
+  "state": "RESEARCHED"
+}

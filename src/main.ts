@@ -505,6 +505,7 @@ document.addEventListener('click', async (event) => {
     navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
     navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
   }
+  if (action === 'reload') window.location.reload();
 });
 
 document.addEventListener('change', async (event) => {
@@ -596,7 +597,7 @@ const initialize = async (): Promise<void> => {
     void registerServiceWorker();
     void verifyLicense().then((state) => { license = state; render(); });
   } catch (error) {
-    app.innerHTML = shell(`<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" onclick="location.reload()">Reload app</button></section>`);
+    app.innerHTML = shell(`<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" data-action="reload">Reload app</button></section>`);
   }
 };
 

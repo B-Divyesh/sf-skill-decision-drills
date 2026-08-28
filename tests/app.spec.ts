@@ -61,3 +61,11 @@ test('privacy and terms are real static routes', async ({ page }) => {
   await page.goto('/terms/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Terms in');
 });
+
+test('deletion is confirmed and reveals the empty state', async ({ page }) => {
+  await page.goto('/#/library');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByRole('heading', { name: 'No drills on this device' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create your first drill' })).toBeVisible();
+});
