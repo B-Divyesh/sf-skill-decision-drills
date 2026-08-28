@@ -41,14 +41,20 @@ so development data is not shared with the deployed site.
 
 ```bash
 npm test
+npm run lint
+npm run typecheck
 npm run build
 npm run test:e2e
+npm run check:live
 ```
 
 `npm run build` is the exact production build command. It writes the static
 site to `dist/`, with `dist/index.html` at the root. Playwright 1.58.2 is pinned
 and its tests cover authoring persistence, complete drill playback, insights,
-390 px layout, privacy/terms routes, accessibility, and a real offline reload.
+390 px layout and text reflow, privacy/terms routes, accessibility, a real
+offline reload, and service-worker update activation. `npm run check:live`
+confirms the canonical product identity, billing catalog record, hosted
+checkout redirect, CORS, and invalid-license response policy.
 
 For a local production preview:
 

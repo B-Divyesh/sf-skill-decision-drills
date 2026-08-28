@@ -14,6 +14,8 @@ let selectedNodeId = '';
 let statusMessage = '';
 let errorMessage = '';
 let fatalStorageError: unknown = null;
+let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
+let updateReady = false;
 
 type PlayerSession = {
   drillId: string;
@@ -61,7 +63,7 @@ const saveDrill = async (drill: Drill, message = 'Saved on this device.'): Promi
 const shell = (content: string): string => {
   const current = route().page;
   return `
-    <a class="skip-link" href="#main">Skip to main content</a>
+    <a class="skip-link" href="#main" data-action="skip-main">Skip to main content</a>
     <header class="topbar">
       <a class="brand" href="#/library" aria-label="Skill Decision Drills home">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -75,14 +77,14 @@ const shell = (content: string): string => {
       </nav>
     </header>
     ${!navigator.onLine ? '<div class="offline-bar" role="status">Offline mode — everything on this device still works.</div>' : ''}
-    <main id="main">${content}</main>
+    <main id="main" tabindex="-1">${content}</main>
     <footer>
       <p><strong>Practice is not proof.</strong> Decision drills support rehearsal and do not replace qualified instruction or certify real-world competence.</p>
       <nav aria-label="Legal and product information"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="#/about">About</a></nav>
       <p class="made-note">Original generated board artwork · No tracking · Local-first</p>
     </footer>
     <div id="live-status" class="sr-only" aria-live="polite">${escapeHtml(statusMessage || errorMessage)}</div>
-    <div id="update-toast" class="toast" hidden><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
+    <div id="update-toast" class="toast" ${updateReady ? '' : 'hidden'}><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
   `;
 };
 
@@ -401,6 +403,13 @@ document.addEventListener('click', async (event) => {
   const target = (event.target as Element).closest<HTMLElement>('[data-action]');
   if (!target) return;
   const action = target.dataset.action;
+  if (action === 'skip-main') {
+    event.preventDefault();
+    const main = document.querySelector<HTMLElement>('#main');
+    main?.focus({ preventScroll: true });
+    main?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    return;
+  }
   if (action === 'export-recovery') {
     try {
       download(`decision-drills-recovery-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await store.getRawAll(), null, 2), 'application/json');
@@ -539,8 +548,16 @@ document.addEventListener('click', async (event) => {
     }
   }
   if (action === 'apply-update') {
+    const registration = serviceWorkerRegistration ?? await navigator.serviceWorker.getRegistration();
+    const waitingWorker = registration?.waiting;
+    if (!waitingWorker) {
+      updateReady = false;
+      setStatus('The update is no longer waiting. The app is already current.');
+      document.querySelector<HTMLElement>('#update-toast')?.setAttribute('hidden', '');
+      return;
+    }
     navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
-    navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
   }
   if (action === 'reload') window.location.reload();
 });
@@ -576,7 +593,13 @@ document.addEventListener('change', async (event) => {
     if (field === 'node-hint') node.hint = input.value;
     if (field === 'node-debrief') node.debrief = input.value;
     if (field === 'node-image' && input instanceof HTMLInputElement && input.files?.[0]) {
-      try { node.image = await imageData(input.files[0]); } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not add image.', true); }
+      try {
+        node.image = await imageData(input.files[0]);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Could not add image.', true);
+        input.value = '';
+        return;
+      }
     }
     const choiceId = input.closest<HTMLElement>('[data-choice-id]')?.dataset.choiceId;
     const choice = node.choices.find((item) => item.id === choiceId);
@@ -616,10 +639,17 @@ window.addEventListener('offline', render);
 const registerServiceWorker = async (): Promise<void> => {
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.register('/sw.js');
-  if (registration.waiting) document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+  serviceWorkerRegistration = registration;
+  if (registration.waiting) {
+    updateReady = true;
+    document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+  }
   registration.addEventListener('updatefound', () => {
     registration.installing?.addEventListener('statechange', () => {
-      if (registration.waiting && navigator.serviceWorker.controller) document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        updateReady = true;
+        document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
+      }
     });
   });
 };
