@@ -130,7 +130,7 @@ const shell = (content: string): string => {
       <nav aria-label="Primary navigation">
         <a ${current === 'library' ? 'aria-current="page"' : ''} href="/drills">Drills</a>
         <a ${current === 'demo' ? 'aria-current="page"' : ''} href="/demo" data-action="open-demo">Demo</a>
-        <a ${current === 'insights' ? 'aria-current="page"' : ''} href="/insights">Insights</a>
+        <a ${current === 'insights' ? 'aria-current="page"' : ''} href="/insights">Results</a>
         <a ${current === 'privacy' ? 'aria-current="page"' : ''} href="/privacy">Privacy</a>
       </nav>
     </header>
@@ -140,7 +140,7 @@ const shell = (content: string): string => {
     <footer>
       <p><strong>Practice is not proof.</strong> Decision drills support rehearsal and do not replace qualified instruction or certify real-world competence.</p>
       <nav aria-label="Legal and product information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/data">Your data</a><a href="/about">About</a></nav>
-      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 4</p>
+      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 5</p>
     </footer>
     <div id="live-status" class="sr-only" aria-live="polite">${escapeHtml(statusMessage || errorMessage)}</div>
     <div id="update-toast" class="toast" ${updateReady ? '' : 'hidden'}><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
@@ -308,7 +308,7 @@ const renderPlayer = (drill: Drill): string => {
         <div class="score-stamp"><strong>${score}%</strong><span>strong decisions</span></div>
         <p class="first-choice ${first ? 'good' : 'needs-work'}"><span>${first ? '✓' : '↺'}</span> First decision: ${first ? 'strong' : 'worth another replay'}</p>
         <div class="debrief-card"><h2>Coach debrief</h2><p>${escapeHtml(drill.description || 'Review the consequences, then replay with a different route.')}</p></div>
-        <div class="completion-actions"><button class="button primary large" type="button" data-action="replay">Replay with shuffled choices</button>${demoMode ? `<button class="button large" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export sample CSV</button><a class="button large" href="${href('insights', drill.id)}?demo=1">View sample results</a>` : `<a class="button large" href="${href('insights', drill.id)}">See progress</a>`}<a class="text-link" href="/drills">Back to drills</a></div>
+        <div class="completion-actions"><button class="button primary large" type="button" data-action="replay">Replay with shuffled choices</button>${demoMode ? `<button class="button large" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export CSV results</button><a class="button large" href="${href('insights', drill.id)}?demo=1">View results</a>` : `<a class="button large" href="${href('insights', drill.id)}">View results</a>`}<a class="text-link" href="/drills">Back to drills</a></div>
       </section>`;
   }
   const node = drill.nodes.find((item) => item.id === player!.nodeId) ?? drill.nodes[0]!;
@@ -336,7 +336,7 @@ const attemptsFor = (id?: string): Attempt[] => id ? data.attempts.filter((attem
 
 const insightPanel = (drill: Drill): string => {
   const attempts = attemptsFor(drill.id);
-  if (!attempts.length) return `<div class="empty-state compact"><span class="empty-route" aria-hidden="true">0</span><h2>No replays yet</h2><p>Run this drill once to start seeing first-decision accuracy and misconception counts.</p><a class="button primary" href="${href('play', drill.id)}">Run drill</a></div>`;
+  if (!attempts.length) return `<div class="empty-state compact"><span class="empty-route" aria-hidden="true">0</span><h2>No replays yet</h2><p>Run this drill once to see the accuracy and choices learners missed.</p><a class="button primary" href="${href('play', drill.id)}">Run drill</a></div>`;
   const misconceptions = misconceptionCounts(attempts);
   const firstAccuracy = attempts[0]?.selections[0]?.correct ? 100 : 0;
   const third = attempts[2];
@@ -346,9 +346,9 @@ const insightPanel = (drill: Drill): string => {
     <div class="metric-grid">
       <div class="metric"><span>Attempts</span><strong>${attempts.length}</strong><small>saved on this device</small></div>
       <div class="metric"><span>Latest accuracy</span><strong>${accuracy(attempts.at(-1)!)}%</strong><small>across decisions</small></div>
-      <div class="metric accent"><span>First-decision lift</span><strong>${lift === null ? '—' : `${lift > 0 ? '+' : ''}${lift}%`}</strong><small>${lift === null ? 'complete 3 attempts' : 'attempt 1 → 3'}</small></div>
+      <div class="metric accent"><span>First-choice improvement</span><strong>${lift === null ? '—' : `${lift > 0 ? '+' : ''}${lift}%`}</strong><small>${lift === null ? 'complete 3 attempts' : 'attempt 1 → 3'}</small></div>
     </div>
-    <section class="chart-section" aria-labelledby="attempt-history"><div class="chart-head"><h2 id="attempt-history">Decision accuracy by replay</h2><button class="text-button" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export CSV</button></div>
+    <section class="chart-section" aria-labelledby="attempt-history"><div class="chart-head"><h2 id="attempt-history">Decision accuracy by replay</h2><button class="text-button" type="button" data-action="export-csv" data-drill-id="${drill.id}">Export CSV results</button></div>
       <div class="bar-chart" role="img" aria-label="Accuracy: ${attempts.map((attempt, index) => `attempt ${index + 1}, ${accuracy(attempt)} percent`).join('; ')}">${attempts.map((attempt, index) => `<div class="bar-column"><span>${accuracy(attempt)}%</span><i style="height:${Math.max(4, accuracy(attempt))}%"></i><small>#${index + 1}</small></div>`).join('')}</div>
     </section>
     <section class="misconceptions" aria-labelledby="misconceptions"><h2 id="misconceptions">Misconceptions to coach next</h2>${misconceptions.length ? `<ol>${misconceptions.map(([label, count]) => `<li><span>${escapeHtml(label)}</span><strong>${count}</strong></li>`).join('')}</ol>` : '<p class="success-note">No tagged misconceptions recorded. The authored strong decisions were selected.</p>'}</section>`;
@@ -357,8 +357,8 @@ const insightPanel = (drill: Drill): string => {
 const renderInsights = (id?: string): string => {
   const drill = (id && data.drills.find((item) => item.id === id)) || data.drills[0];
   return `
-    <section class="insights-head"><div><p class="eyebrow">Local aggregate report</p><h1>Replay insights</h1><p>Review recurring misconceptions and first-decision change from attempt one to three.</p></div>${drill ? `<label for="insight-drill">Drill<select id="insight-drill" data-action="select-insight-drill">${data.drills.map((item) => `<option value="${item.id}" ${item.id === drill.id ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></label>` : ''}</section>
-    ${drill ? `<section class="insight-board"><div class="report-title"><p class="eyebrow">Report for</p><h2>${escapeHtml(drill.title)}</h2></div>${insightPanel(drill)}</section>` : '<div class="empty-state"><h2>No drill data yet</h2><p>Create a drill, then replay it to collect local results.</p><a class="button primary" href="/drills">Create a drill</a></div>'}`;
+    <section class="insights-head"><div><p class="eyebrow">Results saved in this browser</p><h1>Results</h1><p>See whether the first choice improves by attempt three, and which choices learners missed.</p></div>${drill ? `<label for="insight-drill">Drill<select id="insight-drill" data-action="select-insight-drill">${data.drills.map((item) => `<option value="${item.id}" ${item.id === drill.id ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></label>` : ''}</section>
+    ${drill ? `<section class="insight-board"><div class="report-title"><p class="eyebrow">Results for</p><h2>${escapeHtml(drill.title)}</h2></div>${insightPanel(drill)}</section>` : '<div class="empty-state"><h2>No drill data yet</h2><p>Create a drill, then replay it to collect local results.</p><a class="button primary" href="/drills">Create a drill</a></div>'}`;
 };
 
 const renderData = (): string => `
@@ -374,7 +374,7 @@ const renderData = (): string => `
 
 const renderStorageError = (error: unknown): string => {
   if (error instanceof AppDataValidationError) {
-    return `<section class="narrow error-panel"><p class="eyebrow">Recovery needed</p><h1>Saved data needs repair.</h1><p>${escapeHtml(error.message)}</p><p>Download the unreadable records for safekeeping, then reset this device to reopen the app with the safe starter drill.</p><div class="hero-actions"><button class="button" type="button" data-action="export-recovery">Download recovery copy</button><button class="button primary" type="button" data-action="reset-local-data">Reset local drills</button></div><p><small>Reset deletes all drills and attempt history on this device. A confirmation appears first.</small></p></section>`;
+    return `<section class="narrow error-panel"><p class="eyebrow">Recovery needed</p><h1>Saved data needs repair.</h1><p>${escapeHtml(error.message)}</p><p>Download the unreadable records for safekeeping, then reset this device to reopen the app with the bundled starter drill.</p><div class="hero-actions"><button class="button" type="button" data-action="export-recovery">Download recovery copy</button><button class="button primary" type="button" data-action="reset-local-data">Reset local drills</button></div><p><small>Reset deletes all drills and attempt history on this device. A confirmation appears first.</small></p></section>`;
   }
   return `<section class="narrow error-panel"><p class="eyebrow">Storage error</p><h1>Your drill board could not open.</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Local storage is unavailable.')}</p><p>Check that private browsing or browser storage restrictions are not blocking IndexedDB, then reload.</p><button class="button primary" type="button" data-action="reload">Reload app</button></section>`;
 };
@@ -396,7 +396,7 @@ const routeDetails = (current: Route): { title: string; description: string; ann
     demo: { title: 'Demo — Skill Decision Drills', description: 'Try a sample decision drill without saving to your real data.', announcement: 'Demo drill' },
     edit: { title: 'Skill Decision Drills — Edit a drill', description: 'Write a decision drill in your browser.', announcement: 'Edit drill' },
     play: { title: 'Skill Decision Drills — Run a practice drill', description: 'Rehearse choices from a real situation.', announcement: 'Practice drill' },
-    insights: { title: 'Skill Decision Drills — Replay insights', description: 'Review local practice results.', announcement: 'Replay insights' },
+    insights: { title: 'Skill Decision Drills — Results', description: 'Review local practice results.', announcement: 'Results' },
     data: { title: 'Skill Decision Drills — Your data', description: 'Export or restore your browser-stored drills.', announcement: 'Your data' },
     about: { title: 'About — Skill Decision Drills', description: 'Learn what this rehearsal tool does and does not do.', announcement: 'About Skill Decision Drills' },
     privacy: { title: 'Privacy — Skill Decision Drills', description: 'Privacy notice for Skill Decision Drills.', announcement: 'Privacy' },
@@ -554,8 +554,17 @@ document.addEventListener('click', async (event) => {
       fatalStorageError = null;
       player = null;
       selectedNodeId = '';
-      setStatus('Local data reset. The safe starter drill is ready.');
-      navigate('/drills');
+      const resetMessage = 'Local data reset. The starter drill is ready.';
+      if (window.location.pathname === '/drills' && !window.location.search) {
+        render();
+      } else {
+        navigate('/drills', false);
+      }
+      window.scrollTo(0, 0);
+      const heading = document.querySelector<HTMLElement>('main h1');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
+      setStatus(resetMessage);
     } catch {
       setStatus('Local data could not be reset. Check browser storage permissions and try again.', true);
     }

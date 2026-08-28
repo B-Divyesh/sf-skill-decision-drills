@@ -10,15 +10,15 @@ Nothing you do there changes your drills. It opens a three-choice practice drill
 - Create drills that save in this browser.
 - Let learners choose, see feedback, and replay.
 - Change choice order on replay.
-- See attempts, first-decision change by attempt three, and the choices learners missed.
-- Export a JSON backup or CSV report.
+- See whether learners improve their first choice by attempt three, and which choices they missed.
+- Export a JSON backup or CSV results.
 - Restore a JSON backup after confirmation.
 - Add a scenario photo that is resized and stored in this browser.
 - Use the sample offline after the first visit.
 
 ## Run locally
 
-Use Node.js 20.19 or newer, or Node.js 22.12 or newer.
+Use Node.js 20.19–20.x or Node.js 22.12 and newer. Node 21 and Node 22.0–22.11 are unsupported.
 
 ```bash
 npm ci
@@ -44,7 +44,7 @@ Run them all with `npm run test:claims`. The build writes the site to `dist/inde
 
 ## Privacy and safety
 
-The app has no account, advertising code, analytics, or third-party runtime requests.
+The app has no accounts, ads, analytics, or network requests to other companies.
 Your drills stay in browser storage unless you export them.
 Practice does not certify real-world competence.
 Use qualified instruction where mistakes could affect people, property, or rights.
