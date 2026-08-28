@@ -1,5 +1,21 @@
 # Handoff — Skill Decision Drills v1
 
+## Independent verification status: FAIL
+
+Candidate `3b6ef9df774028cfca5f9d9f1623de4992f2b70c` was independently verified
+on 2026-08-28 against <https://skill-decision-drills.sociobot.in>. The live
+deployment is byte-identical to the candidate build, but must not be accepted:
+a syntactically valid yet structurally incomplete JSON import is accepted,
+persists invalid IndexedDB content, and leaves the app on an unrecoverable
+storage-error screen after reload. The live host also gives fingerprinted
+assets only `Cache-Control: public, must-revalidate, max-age=30`, rather than
+long-lived immutable caching. See [verification.md](verification.md) for exact
+reproduction, test results, and severity.
+
+Required next steps: validate full backup schema before replacing any local
+stores, provide recovery for bad stored records, configure immutable caching
+for hashed assets, then submit a new candidate for verification.
+
 ## What shipped
 
 - End-to-end local-first workflow: create/edit/delete branching drills, attach
@@ -25,7 +41,7 @@
   branching-board illustration. Prompt, review, and provenance are recorded in
   `.factory/design.md` and `assets/src/`.
 
-## Verification performed
+## Prior builder self-report (superseded by independent FAIL above)
 
 Run from `/work/repo`:
 
