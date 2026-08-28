@@ -1,14 +1,21 @@
-const VERSION = 'sdd-shell-v1';
-const ASSETS = 'sdd-assets-v1';
+const VERSION = 'sdd-shell-v2';
+const ASSETS = 'sdd-assets-v2';
 const SHELL = [
   '/', '/index.html', '/offline.html', '/manifest.webmanifest',
   '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png',
   '/assets/decision-board-640.webp', '/assets/decision-board-1200.webp',
-  '/privacy/', '/terms/'
+  '/privacy/', '/terms/', '/legal.css'
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(VERSION);
+    await cache.addAll(SHELL);
+    const response = await fetch('/index.html');
+    const html = await response.text();
+    const builtAssets = [...html.matchAll(/["'](\/assets\/[^"']+\.(?:js|css))["']/g)].map((match) => match[1]);
+    if (builtAssets.length) await cache.addAll([...new Set(builtAssets)]);
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,11 +42,11 @@ self.addEventListener('fetch', (event) => {
       const copy = response.clone();
       caches.open(VERSION).then((cache) => cache.put(request, copy));
       return response;
-    }).catch(async () => (await caches.match(request)) || (await caches.match('/index.html')) || caches.match('/offline.html')));
+    }).catch(async () => (await caches.match(request, { ignoreVary: true })) || (await caches.match('/index.html', { ignoreVary: true })) || caches.match('/offline.html', { ignoreVary: true })));
     return;
   }
-  if (url.origin === self.location.origin && ['script', 'style', 'image', 'font'].includes(request.destination)) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+  if (url.origin === self.location.origin) {
+    event.respondWith(caches.match(request, { ignoreVary: true }).then((cached) => cached || fetch(request).then((response) => {
       if (response.ok) caches.open(ASSETS).then((cache) => cache.put(request, response.clone()));
       return response;
     })));

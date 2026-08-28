@@ -42,6 +42,8 @@ const route = (): { page: string; id?: string } => {
 
 const href = (page: string, id?: string): string => `#/${page}${id ? `/${id}` : ''}`;
 
+const safeImageSrc = (value?: string): string => value?.startsWith('data:image/') ? escapeHtml(value) : '';
+
 const setStatus = (message: string, isError = false): void => {
   statusMessage = isError ? '' : message;
   errorMessage = isError ? message : '';
@@ -87,7 +89,7 @@ const drillCard = (drill: Drill): string => {
   const attempts = data.attempts.filter((attempt) => attempt.drillId === drill.id);
   const readyErrors = validateDrill(drill);
   return `
-    <article class="drill-card">
+    <article class="drill-card" data-drill-id="${drill.id}">
       <div class="card-tape" aria-hidden="true">${drill.id.startsWith('starter_') ? 'SAFE SAMPLE' : `${drill.nodes.length} NODES`}</div>
       <p class="eyebrow">${attempts.length} ${attempts.length === 1 ? 'attempt' : 'attempts'} · ${readyErrors.length ? `${readyErrors.length} setup note${readyErrors.length === 1 ? '' : 's'}` : 'Ready to play'}</p>
       <h2>${escapeHtml(drill.title)}</h2>
@@ -96,6 +98,7 @@ const drillCard = (drill: Drill): string => {
         <a class="button primary" href="${href('play', drill.id)}">Run drill</a>
         <a class="button" href="${href('edit', drill.id)}">Edit</a>
         <a class="text-link" href="${href('insights', drill.id)}">View results</a>
+        <button class="text-button danger-text" type="button" data-action="delete-drill">Delete</button>
       </div>
     </article>`;
 };
@@ -177,7 +180,7 @@ const renderEditor = (drill: Drill): string => {
         <div class="sheet-heading"><div><p class="eyebrow">Decision ${drill.nodes.findIndex((item) => item.id === node.id) + 1}</p><h2 id="node-sheet-title">Build this moment</h2></div><div class="sheet-tools">${node.id !== drill.startNodeId ? '<button class="text-button" type="button" data-action="set-start">Make start</button>' : '<span class="start-label">Start node</span>'}<button class="text-button danger-text" type="button" data-action="delete-node">Delete</button></div></div>
         <div class="field full"><label for="node-prompt">What is happening? <span>Ask for a decision, not a fact.</span></label><textarea id="node-prompt" data-field="node-prompt" rows="4">${escapeHtml(node.prompt)}</textarea></div>
         <div class="image-field">
-          ${node.image ? `<img src="${node.image}" alt="Scenario reference uploaded for this decision" width="640" height="360" /><button type="button" class="text-button danger-text" data-action="remove-image">Remove image</button>` : '<div class="image-placeholder" aria-hidden="true"><span>＋</span> Optional scene photo</div>'}
+          ${safeImageSrc(node.image) ? `<img src="${safeImageSrc(node.image)}" alt="Scenario reference uploaded for this decision" width="640" height="360" /><button type="button" class="text-button danger-text" data-action="remove-image">Remove image</button>` : '<div class="image-placeholder" aria-hidden="true"><span>＋</span> Optional scene photo</div>'}
           <div><label class="button small" for="node-image">${node.image ? 'Replace photo' : 'Add photo'}</label><input class="sr-only" id="node-image" type="file" accept="image/jpeg,image/png,image/webp" data-field="node-image" /><p>Saved on this device. Resized to reduce storage.</p></div>
         </div>
         <div class="field full"><label for="node-hint">Hint path <span>What should the learner notice?</span></label><textarea id="node-hint" data-field="node-hint" rows="2">${escapeHtml(node.hint)}</textarea></div>
@@ -249,10 +252,10 @@ const renderPlayer = (drill: Drill): string => {
   return `
     <section class="player-shell narrow" data-drill-id="${drill.id}" data-node-id="${node.id}">
       <div class="player-top"><a class="text-link" href="#/library">← Leave drill</a><span>Decision ${step}</span></div>
-      <div class="progress-track" aria-label="${player!.selections.length} decisions completed"><i style="width:${Math.min(100, player!.selections.length * 18 + 12)}%"></i></div>
+      <div class="progress-track" role="img" aria-label="${player!.selections.length} decisions completed"><i style="width:${Math.min(100, player!.selections.length * 18 + 12)}%"></i></div>
       <p class="eyebrow">${escapeHtml(drill.title)}</p>
       <h1>${escapeHtml(node.prompt)}</h1>
-      ${node.image ? `<img class="scenario-image" src="${node.image}" alt="Scenario reference for this decision" width="640" height="360" />` : ''}
+      ${safeImageSrc(node.image) ? `<img class="scenario-image" src="${safeImageSrc(node.image)}" alt="Scenario reference for this decision" width="640" height="360" />` : ''}
       ${node.hint ? `<div class="hint-wrap">${player!.hintVisible ? `<div class="hint" role="note"><strong>Notice this</strong><p>${escapeHtml(node.hint)}</p></div>` : '<button class="hint-button" type="button" data-action="show-hint">Need a hint?</button>'}</div>` : ''}
       ${choices.length ? `<div class="player-choices" aria-label="Choose your response">${choices.map((choice, index) => `
         <button type="button" class="player-choice ${selected?.id === choice.id ? (choice.isCorrect ? 'selected correct' : 'selected incorrect') : ''}" data-action="choose" data-choice-id="${choice.id}" ${selected ? 'disabled' : ''}>
@@ -338,7 +341,9 @@ const render = (): void => {
   else if (current.page === 'about') content = renderAbout();
   else content = notFound();
   app.innerHTML = shell(content);
-  document.title = `${current.page === 'library' ? 'Skill Decision Drills' : document.querySelector('h1')?.textContent ?? 'Skill Decision Drills'} — Skill Decision Drills`;
+  document.title = current.page === 'library'
+    ? 'Skill Decision Drills — Practice the choice, not the fact'
+    : `${document.querySelector('h1')?.textContent ?? 'Skill Decision Drills'} — Skill Decision Drills`;
 };
 
 const currentDrillAndNode = (target: Element): { drill: Drill; node?: DrillNode } | null => {
@@ -394,6 +399,15 @@ document.addEventListener('click', async (event) => {
     await store.putDrill(drill);
     selectedNodeId = drill.startNodeId;
     window.location.hash = href('edit', drill.id);
+  }
+  if (action === 'delete-drill') {
+    const drill = data.drills.find((item) => item.id === target.closest<HTMLElement>('[data-drill-id]')?.dataset.drillId);
+    if (!drill || !confirm(`Delete “${drill.title}” and all of its attempt history from this device?`)) return;
+    await store.deleteDrill(drill.id);
+    data.drills = data.drills.filter((item) => item.id !== drill.id);
+    data.attempts = data.attempts.filter((attempt) => attempt.drillId !== drill.id);
+    setStatus('Drill and its attempt history deleted.');
+    render();
   }
   if (action === 'select-node') {
     selectedNodeId = target.dataset.nodeId ?? '';
@@ -473,13 +487,24 @@ document.addEventListener('click', async (event) => {
   if (action === 'export-csv') {
     const drill = data.drills.find((item) => item.id === target.dataset.drillId);
     if (drill) {
-      const rows = ['attempt,completed_at,decision,correct,misconception'];
-      attemptsFor(drill.id).forEach((attempt, attemptIndex) => attempt.selections.forEach((selection, selectionIndex) => rows.push([attemptIndex + 1, attempt.completedAt, selectionIndex + 1, selection.correct, `"${selection.misconception.replaceAll('"', '""')}"`].join(','))));
+      const drillAttempts = attemptsFor(drill.id);
+      const rows = ['metric,label,value'];
+      rows.push(`summary,attempts,${drillAttempts.length}`);
+      drillAttempts.forEach((attempt, attemptIndex) => {
+        rows.push(`attempt_accuracy,attempt_${attemptIndex + 1},${accuracy(attempt)}`);
+        rows.push(`first_decision,attempt_${attemptIndex + 1},${attempt.selections[0]?.correct ? 100 : 0}`);
+      });
+      misconceptionCounts(drillAttempts).forEach(([label, count]) => {
+        rows.push(`misconception_count,"${label.replaceAll('"', '""')}",${count}`);
+      });
       download(`${drill.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-results.csv`, rows.join('\n'), 'text/csv');
       setStatus('Results CSV downloaded.');
     }
   }
-  if (action === 'apply-update') navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+  if (action === 'apply-update') {
+    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+    navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+  }
 });
 
 document.addEventListener('change', async (event) => {
@@ -559,7 +584,6 @@ const registerServiceWorker = async (): Promise<void> => {
       if (registration.waiting && navigator.serviceWorker.controller) document.querySelector<HTMLElement>('#update-toast')?.removeAttribute('hidden');
     });
   });
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
 };
 
 const initialize = async (): Promise<void> => {
