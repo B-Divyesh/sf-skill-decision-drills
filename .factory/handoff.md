@@ -1,89 +1,135 @@
-# Handoff — Skill Decision Drills v1
+# Repair handoff — Skill Decision Drills
 
-## Independent verification status: FAIL
+## Outcome
 
-Candidate `3b6ef9df774028cfca5f9d9f1623de4992f2b70c` was independently verified
-on 2026-08-28 against <https://skill-decision-drills.sociobot.in>. The live
-deployment is byte-identical to the candidate build, but must not be accepted:
-a syntactically valid yet structurally incomplete JSON import is accepted,
-persists invalid IndexedDB content, and leaves the app on an unrecoverable
-storage-error screen after reload. The live host also gives fingerprinted
-assets only `Cache-Control: public, must-revalidate, max-age=30`, rather than
-long-lived immutable caching. See [verification.md](verification.md) for exact
-reproduction, test results, and severity.
+Work order `skill-decision-drills-repair-1` is complete. Both release blockers
+reported for candidate `3b6ef9df774028cfca5f9d9f1623de4992f2b70c` in verifier
+commit `b0d3edf6f8520144578465ac8e21e1deb47ffa2e` were reproduced, repaired,
+covered by regression tests, and verified on the canonical production host.
+The repair implementation is commit `ce5fd97` on `main`.
 
-Required next steps: validate full backup schema before replacing any local
-stores, provide recovery for bad stored records, configure immutable caching
-for hashed assets, then submit a new candidate for verification.
+Production: <https://skill-decision-drills.sociobot.in>
 
-## What shipped
+## Repairs
 
-- End-to-end local-first workflow: create/edit/delete branching drills, attach
-  locally resized scenario images, connect consequences to later decisions,
-  add hints/debriefs, set a start node, and check authoring readiness.
-- Focused learner player with shuffled choices, immediate consequence feedback,
-  hints, bounded traversal, attempt persistence, replay, and safety disclaimer.
-- Local insight report with per-attempt accuracy, first-decision change from
-  attempt one to three, aggregate misconception counts, and CSV export.
-- IndexedDB persistence plus user-owned JSON backup/import. An empty state,
-  malformed-import error, missing-drill error, and IndexedDB failure screen are
-  included.
-- Installable PWA manifest, 192/512/maskable icon, versioned service-worker
-  caches, first-install hashed-asset precaching, offline fallback, and an
-  in-app update prompt.
-- $29 one-time unlock contract: hosted Sociobot checkout, URL token capture,
-  local token storage, daily background verification, optimistic offline use,
-  invalid-license notice, and paste-to-restore. Free use remains meaningful at
-  two complete drills; exports, accessibility, and safety are never gated.
-- Static `/privacy/` and `/terms/` pages, MIT license, complete README, and a
-  safe non-hazardous starter drill.
-- Product-specific neo-brutalist field-board system and an original generated
-  branching-board illustration. Prompt, review, and provenance are recorded in
-  `.factory/design.md` and `assets/src/`.
+### P1 — unsafe backup import and unrecoverable stored corruption
 
-## Prior builder self-report (superseded by independent FAIL above)
+- Added recursive runtime validation for every required app-data field and
+  type across drills, nodes, choices, attempts, and selections.
+- Added identifier, duplicate-ID, start-node, branch-target, and attempt-owner
+  integrity checks. Unsafe identifier characters are rejected before they can
+  reach HTML attributes.
+- Invalid JSON now gets a clear announced error. Structurally incomplete JSON
+  is rejected before the replacement confirmation and before IndexedDB writes.
+- The storage boundary validates again before its single read/write
+  transaction clears and replaces either object store. A failed validation or
+  transaction therefore leaves the previous database intact.
+- Startup validates persisted records, including records written by the failed
+  release. Corruption opens a dedicated recovery screen instead of crashing.
+  Users can download the raw records, then explicitly confirm a reset that
+  atomically restores the safe starter drill. Navigation cannot bypass this
+  recovery state.
+
+Exact regression coverage uses the verifier payload:
+
+```json
+{"drills":[{"id":"invalid","nodes":[]}],"attempts":[]}
+```
+
+The browser test proves that it produces no replacement confirmation, reports
+the missing `title`, preserves the existing drill across reload, and leaves the
+player usable. A second test writes that malformed record directly to
+IndexedDB, then proves recovery-copy download, accessible recovery UI,
+confirmed reset, and healthy persistence after another reload.
+
+### P2 — 30-second caching on content-hashed assets
+
+- Added the deployed Azure Static Web Apps policy in
+  `public/staticwebapp.config.json`.
+- `/assets/*` now receives `Cache-Control: public, max-age=31536000, immutable`.
+- `/` remains fresh with `no-cache, must-revalidate`; `sw.js` uses `no-cache,
+  no-store, must-revalidate`; the manifest has a one-hour revalidation policy.
+- `.webmanifest` now serves as `application/manifest+json`.
+- Added `X-Frame-Options: DENY` while preserving the existing nosniff and
+  referrer policies.
+- Advanced service-worker cache names from v2 to v3 so installed copies detect
+  this release and use the existing in-app update path.
+- Added an exact unit regression for the deployment response policy.
+
+## Verification evidence — 2026-08-28 UTC
 
 Run from `/work/repo`:
 
 ```bash
-npm install
-npm test
-npm run build
-npm run test:e2e
+npm ci
+npm run check
+npm audit --omit=dev
 ```
 
-Results on 2026-08-28:
-
-- `npm test`: 4/4 Vitest unit tests passed.
-- `npm run build`: passed; `dist/index.html` present. Initial app JS is 40.25 KB
-  raw / 13.51 KB gzip; CSS is 22.92 KB raw / 5.56 KB gzip. Hero WebP variants
-  are 12 KB and 44 KB, all within the supplied budgets.
-- `npm run test:e2e`: 7/7 Playwright tests passed using pinned Chromium 1.58.2.
-  Covered authoring persistence, a complete 3-decision route, saved insights,
-  confirmed deletion/empty state, 390 px usability, legal routes, and reload +
-  continued play with the browser explicitly offline.
-- Axe Playwright scan: no serious or critical violations on library, editor,
-  player, insights, data, upgrade, privacy, or terms screens.
+- Clean install: 60 packages installed; audit found 0 vulnerabilities.
+- Unit/policy tests: 5/5 passed in 2 files.
+- Type check and production build: `tsc --noEmit && vite build` passed;
+  `dist/index.html` is present. There is no separate lint script.
+- Playwright 1.58.2: 9/9 Chromium tests passed across desktop and Pixel 5
+  profiles, including authoring, persistence, full playback/reporting, legal
+  pages, offline reload, malformed-import preservation, and legacy recovery.
+- Package/consumer gate: not applicable to this static PWA; the deployable
+  artifact itself was built and exercised through Vite preview and production.
+- Desktop 1440px and mobile 390px: library, editor, player, insights, data,
+  upgrade, about, privacy, and terms each had zero horizontal overflow, one
+  `<h1>`, one `<main>`, correct language/title, no console/page errors, and no
+  serious or critical axe violations.
+- Keyboard: Tab reached a decision and Enter selected it. Computed focus was a
+  3px `rgb(76, 114, 255)` outline with 3px offset.
+- Reduced motion: transition/animation duration was 0.01ms and document scroll
+  behavior was `auto`.
+- Privacy: a clean normal flow made no request outside the product origin; no
+  analytics, CDN scripts, or remote fonts are present. Product data remains in
+  IndexedDB.
+- Offline/update: a fresh production profile installed `/sw.js`, reloaded with
+  Playwright offline mode enabled, showed the offline banner, and opened the
+  starter player. The active cache version is v3; `skipWaiting`,
+  `clients.claim`, and the waiting-worker update action remain wired.
+- Bundle: initial JS 44,578 B raw / 14,790 B gzip; CSS 22,924 B raw / 5,566 B
+  gzip; largest hero WebP 44,102 B.
 - Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best Practices
   100, SEO 100; LCP 1.5 s, CLS 0, Total Blocking Time 0 ms.
-- Manual visual review: desktop 1440 px and mobile 390 px; no horizontal mobile
-  overflow and no console/page errors on load.
-- `npm audit --omit=dev`: 0 vulnerabilities (the full dependency audit was also
-  clean after updating Vite/Vitest patch releases).
 
-## Build and deploy
+## Production and identity evidence
 
-The exact build command is `npm run build`. Deploy the generated `dist/`
-directory as a static site; `index.html` is at its root. The canonical host is
-`https://skill-decision-drills.sociobot.in`.
+Deployment used the work order's static command:
 
-## Known gaps / next steps
+```bash
+/opt/fleet/lib/deploy-static.sh skill-decision-drills /work/repo/dist
+```
 
-- The factory still needs to register/confirm the production paid product and
-  its return URL. The client intentionally uses the slug-based production API
-  and contains no provider or product ID.
-- v1 is deliberately single-device and aggregate-only: there are no learner
-  accounts, named participants, cloud sync, multi-coach collaboration, or
-  content marketplace.
-- Measurement is descriptive rather than certifying. Coaches must validate
-  their own scenarios and use qualified instruction for consequential skills.
+Azure deployment ID: `9c0714d8-26b1-429f-9d69-bd86eae7f1ff`.
+
+- All 16 shipped non-source-map files (excluding the host-only config) matched
+  local `dist/` byte-for-byte.
+- Index SHA-256, local and live:
+  `48474757c17c2134dee1e89f31296c5128a4961038e09c645aac3d5ed56e6bbd`.
+- Service worker SHA-256, local and live:
+  `26781b06b8d2602b5a58fbf4209286b7233e915eee8b42373fd455bc89b43b4a`.
+- Live hashed JS `/assets/main-DVx0WJi9.js`: HTTP 200, 44,578 B,
+  `Cache-Control: public, max-age=31536000, immutable`.
+- Live `/`: `Cache-Control: no-cache, must-revalidate`.
+- Live `/sw.js`: `Cache-Control: no-cache, no-store, must-revalidate`.
+- Live manifest: `Content-Type: application/manifest+json`.
+- Factory `verify-url.sh`: HTTP 200 in 565 ms, no errors, correct title/lang,
+  one h1/main, zero missing alt text, and zero unlabeled buttons.
+- The complete live malformed-import and legacy-recovery scenarios passed with
+  no console/page errors; the live 390px recovery screen had no overflow and
+  no serious/critical axe findings.
+
+## Preserved scope and known gaps
+
+The researched brief, original field-board visual system, generated asset and
+provenance, local-first editor/player/reporting behavior, two-drill free tier,
+Sociobot-only paid unlock, legal pages, privacy posture, PWA artifact class, and
+static deployment class are unchanged.
+
+No release-blocking gaps remain from the independent verification report. The
+factory still needs to maintain the registered production paid product and
+return URL outside this repository. V1 remains intentionally single-device,
+aggregate-only, and non-certifying as documented in the README and product UI.

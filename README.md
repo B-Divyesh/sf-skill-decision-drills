@@ -15,7 +15,7 @@ Live product: <https://skill-decision-drills.sociobot.in>
 - Branching learner mode with hints, consequences, debriefs, and replay
 - Choice shuffling on every replay to reduce position memorization
 - Local attempt history, first-decision lift, and misconception counts
-- JSON backup/import plus aggregate CSV report export
+- Schema-validated JSON backup/import, corrupt-data recovery, and aggregate CSV report export
 - Optional local scenario photos, resized in the browser
 - Installable PWA shell and explicit first-session offline coverage
 - A safe, non-hazardous “Studio handoff” starter drill
