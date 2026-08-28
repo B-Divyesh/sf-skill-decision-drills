@@ -108,7 +108,7 @@ const shell = (content: string): string => {
     <footer>
       <p><strong>Practice is not proof.</strong> Decision drills support rehearsal and do not replace qualified instruction or certify real-world competence.</p>
       <nav aria-label="Legal and product information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/data">Your data</a><a href="/about">About</a></nav>
-      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 2</p>
+      <p class="made-note">Original artwork generated for this app.<br>Built by Param Factory · release 3</p>
     </footer>
     <div id="live-status" class="sr-only" aria-live="polite">${escapeHtml(statusMessage || errorMessage)}</div>
     <div id="update-toast" class="toast" ${updateReady ? '' : 'hidden'}><span>A fresh app version is ready.</span><button type="button" data-action="apply-update">Update now</button></div>
@@ -290,12 +290,12 @@ const renderPlayer = (drill: Drill): string => {
       <p class="eyebrow">${escapeHtml(drill.title)}</p>
       <h1>${escapeHtml(node.prompt)}</h1>
       ${safeImageSrc(node.image) ? `<img class="scenario-image" src="${safeImageSrc(node.image)}" alt="Scenario reference for this decision" width="640" height="360" />` : ''}
-      ${node.hint ? `<div class="hint-wrap">${player!.hintVisible ? `<div class="hint" role="note"><strong>Notice this</strong><p>${escapeHtml(node.hint)}</p></div>` : '<button class="hint-button" type="button" data-action="show-hint">Need a hint?</button>'}</div>` : ''}
+      ${node.hint ? `<div class="hint-wrap">${player!.hintVisible ? `<div class="hint" role="note"><strong>Notice this</strong><p>${escapeHtml(node.hint)}</p></div>` : '<button class="hint-button" type="button" data-action="show-hint">Show hint</button>'}</div>` : ''}
       ${choices.length ? `<div class="player-choices" aria-label="Choose your response">${choices.map((choice, index) => `
         <button type="button" class="player-choice ${selected?.id === choice.id ? (choice.isCorrect ? 'selected correct' : 'selected incorrect') : ''}" data-action="choose" data-choice-id="${choice.id}" ${selected ? 'disabled' : ''}>
           <span>${String.fromCharCode(65 + index)}</span><strong>${escapeHtml(choice.label)}</strong>${selected?.id === choice.id ? `<em>${choice.isCorrect ? 'Strong decision' : 'See what follows'}</em>` : ''}
         </button>`).join('')}</div>` : '<div class="empty-state compact"><h2>This route ends here</h2><button class="button primary" type="button" data-action="finish-drill">Finish and debrief</button></div>'}
-      ${selected ? `<section class="consequence ${selected.isCorrect ? 'positive' : 'caution'}" aria-live="polite"><p class="eyebrow">Consequence</p><h2>${selected.isCorrect ? 'That protects the outcome.' : 'Pause and inspect the result.'}</h2><p>${escapeHtml(selected.consequence || 'No consequence note was added for this choice.')}</p>${node.debrief ? `<div class="micro-debrief"><strong>Coach note</strong><p>${escapeHtml(node.debrief)}</p></div>` : ''}<button class="button primary large" type="button" data-action="continue">${selected.nextNodeId ? 'Continue to next decision' : 'Finish and debrief'}</button></section>` : ''}
+      ${selected ? `<section class="consequence ${selected.isCorrect ? 'positive' : 'caution'}" aria-live="polite"><p class="eyebrow">Consequence</p><h2>${selected.isCorrect ? 'That protects the outcome.' : 'Pause and inspect the result.'}</h2><p>${escapeHtml(selected.consequence || 'No consequence note was added for this choice.')}</p>${node.debrief ? `<div class="micro-debrief"><strong>Coach note</strong><p>${escapeHtml(node.debrief)}</p></div>` : ''}<button class="button primary large" type="button" data-action="continue">${selected.nextNodeId ? 'Show next decision' : 'Finish and debrief'}</button></section>` : ''}
       <p class="safety-note">This rehearsal does not replace qualified instruction or assess real-world competence.</p>
     </section>`;
 };

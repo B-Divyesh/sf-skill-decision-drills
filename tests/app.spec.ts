@@ -31,9 +31,9 @@ const database = async (page: Page, name: string): Promise<{ drills: Array<Recor
 const completeSample = async (page: Page): Promise<void> => {
   await page.getByRole('button', { name: /Ask what “finished” means/ }).click();
   await expect(page.getByRole('heading', { name: 'That protects the outcome.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Continue to next decision' }).click();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
   await page.getByRole('button', { name: /Ask for the approved reference/ }).click();
-  await page.getByRole('button', { name: 'Continue to next decision' }).click();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
   await page.getByRole('button', { name: /Deliver it with a short change summary/ }).click();
   await page.getByRole('button', { name: 'Finish and debrief' }).click();
   await expect(page.getByRole('heading', { name: 'Route replayed.' })).toBeVisible();
@@ -82,11 +82,12 @@ test('@claim:demo-isolated changes and resets demo data without touching normal 
   expect(JSON.stringify(await database(page, 'skill-decision-drills'))).toBe(normalBefore);
 });
 
-test('@claim:sample-access opens the complete sample without payment or setup', async ({ page }) => {
+test('@claim:sample-access opens a three-choice sample without payment or setup', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Try it with sample data' }).click();
   await expect(page).toHaveURL(/\/demo$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('A teammate hands you');
+  await expect(page.locator('.player-choice')).toHaveCount(3);
   await expect(page.getByRole('button', { name: /Ask what “finished” means/ })).toBeEnabled();
   await expect(page.locator('form[action*="checkout"], [href*="checkout"], [name*="payment"]')).toHaveCount(0);
 });
@@ -160,6 +161,9 @@ test('@claim:no-tracking loads every public route without analytics or third-par
 
 test('@claim:replay-feedback shows consequences, debrief, and permits replay', async ({ page }) => {
   await page.goto(demo);
+  await expect(page.getByRole('button', { name: 'Show hint' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show hint' }).click();
+  await expect(page.getByRole('note')).toContainText('reduces ambiguity before work begins');
   await completeSample(page);
   await expect(page.getByText('100%')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Coach debrief' })).toBeVisible();
@@ -178,12 +182,20 @@ test('@claim:shuffle changes the choice order on replay', async ({ page }) => {
 
 test('@claim:insights reports completed attempts and missed choices', async ({ page }) => {
   await page.goto(demo);
-  await completeSample(page);
+  await page.getByRole('button', { name: /Open the newest-looking file/ }).click();
+  await expect(page.getByRole('heading', { name: 'Pause and inspect the result.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
+  await page.getByRole('button', { name: /Compare them, note the differences/ }).click();
+  await page.getByRole('button', { name: 'Show next decision' }).click();
+  await page.getByRole('button', { name: /Deliver it with a short change summary/ }).click();
+  await page.getByRole('button', { name: 'Finish and debrief' }).click();
   await page.getByRole('link', { name: 'View sample results' }).click();
   await expect(page).toHaveURL(/\/insights\/starter_studio_handoff\?demo=1$/);
   await expect(page.locator('.metric').nth(0).locator('strong')).toHaveText('1');
-  await expect(page.locator('.metric').nth(1).locator('strong')).toHaveText('100%');
-  await expect(page.getByText('No tagged misconceptions recorded.')).toBeVisible();
+  await expect(page.locator('.metric').nth(1).locator('strong')).toHaveText('67%');
+  const missedChoice = page.locator('.misconceptions li').filter({ hasText: 'Acting before confirming the goal' });
+  await expect(missedChoice).toBeVisible();
+  await expect(missedChoice.locator('strong')).toHaveText('1');
 });
 
 test('@claim:photo-local resizes a scenario image and stores it only in IndexedDB', async ({ page }) => {
@@ -320,7 +332,7 @@ test('every route has the shared shell and no serious accessibility violations',
     await page.goto(path);
     await expect(page.locator('.brand-mark')).toHaveCount(1);
     await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link')).toHaveText(['Drills', 'Demo', 'Insights', 'Privacy']);
-    await expect(page.locator('footer')).toContainText('Built by Param Factory · release 2');
+    await expect(page.locator('footer')).toContainText('Built by Param Factory · release 3');
     const scan = await new AxeBuilder({ page }).analyze();
     expect(scan.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? '')), path).toEqual([]);
     if (path !== '/not-a-route') expect(errors.slice(errorsBefore), path).toEqual([]);
