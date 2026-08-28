@@ -14,8 +14,7 @@ describe('static deployment response policy', () => {
     expect(config.globalHeaders['Cross-Origin-Opener-Policy']).toBe('same-origin');
     expect(config.routes).toEqual(expect.arrayContaining([
       expect.objectContaining({ route: '/demo', rewrite: '/index.html' }),
-      expect.objectContaining({ route: '/drills/*', rewrite: '/index.html' }),
-      expect.objectContaining({ route: '/404', rewrite: '/404.html', statusCode: 404 })
+      expect.objectContaining({ route: '/drills/*', rewrite: '/index.html' })
     ]));
     expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
     expect('navigationFallback' in config).toBe(false);
