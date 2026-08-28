@@ -3,6 +3,7 @@
 Candidate repaired: `3db077c997665eb745ec3ec0abfcb082eccddc81`  
 Adversarial report: `ddbea57c48dfc215446115cf401b7926622697e1`  
 Product repair: `e45f8f07b01521fee31f81e72fcb8675d6f6954a`  
+Verification isolation: `e5f318502762f556ba479478c658fa376c70fb8d`
 Live URL: <https://skill-decision-drills.sociobot.in>
 
 ## Review 3 findings
@@ -66,11 +67,13 @@ Live URL: <https://skill-decision-drills.sociobot.in>
 
 ## Verification summary
 
-- Clean clone: `/tmp/sdd-polish3-clean-goeVTq` at `e45f8f0`.
+- Fresh remote clone: `/tmp/sdd-polish3-clean-4mB5B7` at `e5f3185`.
 - `npm ci` and `npm audit --omit=dev`: passed with 0 vulnerabilities.
 - `npm run check`: passed; Vitest 6/6 and Playwright 25/25.
 - All 17 manifest commands passed individually; aggregate `npm run test:claims` passed 17/17.
 - Production build: 47.56 kB JS raw / 15.49 kB gzip and 24.43 kB CSS raw / 5.84 kB gzip.
-- Live deployment and cold-browser evidence are recorded in `.factory/handoff.md`.
+- Live deployment `a668bde5-5c96-4127-a1f6-e3a2bb0a572f` passed the cold
+  browser, header, 404, and full 25-test recheck; exact evidence is in
+  `.factory/handoff.md`.
 
 No finding is deferred.

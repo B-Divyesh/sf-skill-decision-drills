@@ -1,112 +1,69 @@
-# Handoff — adversarial review 3
-
-## Review-only update
-
-This worker made no product-code, asset, or configuration changes. It added
-`.factory/review-3.md` and updated this handoff after a full fresh review of
-commit `3db077c997665eb745ec3ec0abfcb082eccddc81`.
-
-The review verdict is **FAIL**. The live product works through its demo,
-offline path, metadata/routing, accessibility, and link checks, but two claim
-tests do not prove quantitative copy promises:
-
-- `sample-access` does not assert exactly three visible sample choices.
-- `insights` does not create and assert a non-zero missed-choice count.
-
-There is also a minor plain-words issue: “Need a hint?” and “Continue to next
-decision” should be result-naming actions.
-
-How to verify the review evidence:
-
-```bash
-npm ci
-npm test
-npm run lint
-npm run build
-npm run test:claims
-```
-
-The reviewer additionally ran the 17 tagged claim tests from clean clone
-`/tmp/sdd-review3-clean-S4sE22` against its built production server; all passed
-despite the two incomplete assertions. See `.factory/review-3.md` for the
-required test changes and full live evidence.
-
-## Earlier handoff
+# Handoff — polish round 3
 
 ## Delivered
 
-All findings in `.factory/review-1.md`, `.factory/review-2.md`, earlier
-verification reports, and `.factory/polish-1.md` are closed. The product keeps
-its neo-brutalist field-board design and remains a static offline PWA.
+All findings in `.factory/review-1.md`, `.factory/review-2.md`,
+`.factory/review-3.md`, the earlier verification reports, and the prior polish
+records are closed. The static, offline PWA keeps its neo-brutalist field-board
+identity.
 
-The release now has a compact first screen, isolated one-click demo, complete
-claims contract, normal-data privacy proof, complete real routes and metadata,
-working legal navigation, shared legal chrome, focus announcements, and true
-HTTP 404 responses. Copy, README instructions, catalog text, and PWA status
-messages now match the tested behavior.
+Round 3 closes the final three review findings:
 
-Repair commits pushed to `main`:
+- `sample-access` now proves the exact three-choice sample outcome.
+- `insights` now creates one tagged miss and proves the 67% report and count.
+- Player actions now say **Show hint** and **Show next decision**.
 
-- `f9ff8af` — cumulative product, claims, copy, routing, and layout repairs.
-- `851b3e5` — valid Azure response-override configuration.
-- `3d89252` — true `/404` and arbitrary-path HTTP 404 behavior.
-- `fba4e2d` — clean fallback when service workers are blocked.
+The release includes the isolated `?demo=1`/`/demo` player, separate `demo:`
+IndexedDB and localStorage namespaces, reset/start-real controls, full claim
+manifest, real History API routes, titles and metadata, focused/announced route
+changes, legal pages, mobile reflow, response hardening, offline use, and a
+real 404 response. The detailed finding map is `.factory/polish-3.md`.
 
-Production deployment ID: `24a418ed-0c37-4299-b9b3-b0f3d9ae1dbc`.
+## Release
 
-## Verification evidence
+- Repair commit: `e45f8f07b01521fee31f81e72fcb8675d6f6954a`.
+- Verification isolation commit: `e5f318502762f556ba479478c658fa376c70fb8d`.
+- Production deployment: `a668bde5-5c96-4127-a1f6-e3a2bb0a572f`.
+- Live URL: <https://skill-decision-drills.sociobot.in>.
 
-- `npm run check`: passed. Vitest 6/6, lint, typecheck/build, and Playwright
-  25/25 all passed.
-- Production build: `dist/index.html`; initial JS 47.57 kB raw / 15.50 kB
-  gzip; CSS 24.43 kB raw / 5.84 kB gzip.
-- Every one of 17 `.factory/claims.json` commands passed individually from
-  clean clone `/tmp/sdd-polish2-clean-kG1AN9`. A final aggregate run against
-  pushed commit `7e4d3ca` also passed 17/17 in clean clone
-  `/tmp/sdd-polish2-final-wsRtMj`.
-- Live Playwright at <https://skill-decision-drills.sociobot.in>: 9/9 selected
-  route, demo, offline, first-screen, 200% reflow, reduced-motion, mobile, and
-  axe checks passed. The blocked-service-worker console test also passed 1/1.
-- Live 390 × 844 first-screen bottoms: primary action 625 px, outcome 619 px,
-  facts 653/692/711 px. All are inside the 844 px viewport.
-- Live cold demo: Reset restored the first decision; Start for real left zero
-  demo drills, zero demo attempts, and no demo initialization key.
-- Live legal click: `/privacy`, correct title/H1, and H1 focus. The complete
-  route claim also covers Terms and browser Back announcement.
-- Live response checks: `/` 200, `/privacy` 200, `/terms` 200, `/404` 404,
-  arbitrary missing path 404. Security headers and hourly art revalidation are
-  present.
-- Live runtime: no external requests; no console or page errors on valid routes,
-  including a context where service workers are blocked.
+## Verification
+
+- `npm run check`: passed — Vitest 6/6, lint, typecheck/build, and Playwright
+  25/25, including axe serious/critical scans, keyboard skip, 390 px layout,
+  200% text reflow, reduced motion, privacy, and offline tests.
+- Fresh remote clone `/tmp/sdd-polish3-clean-4mB5B7`: `npm ci` passed with
+  zero audit vulnerabilities; every one of the 17 commands in
+  `.factory/claims.json` passed individually.
+- Production build: `dist/index.html`; JS 47.56 kB raw / 15.49 kB gzip; CSS
+  24.43 kB raw / 5.84 kB gzip.
+- Cold live smoke: `/opt/fleet/lib/verify-url.sh` passed for `/` and
+  `/?demo=1`; both have a title, `lang`, one H1, one main landmark, image alt
+  text, no unlabeled buttons, and no console/page errors.
+- Live browser suite: `PLAYWRIGHT_BASE_URL=https://skill-decision-drills.sociobot.in npm run test:e2e` passed 25/25.
+- Live routing: `/`, `/privacy`, `/terms`, and `/demo` return 200; `/404` and
+  `/no-such-route-polish-3` return 404. CSP, Permissions-Policy, COOP,
+  Referrer-Policy, nosniff, and the one-hour board-art cache policy are live.
 - Lighthouse mobile: performance 100, accessibility 100, best practices 100,
-  SEO 100, LCP 1.2 s, CLS 0, TBT 0 ms.
-- Evidence: `evidence/live/landing-mobile.png`,
-  `evidence/live/landing-desktop.png`, `evidence/live/demo-mobile.png`,
-  `evidence/live/privacy-desktop.png`, `evidence/live/404-desktop.png`, and
+  SEO 100; LCP 1.1 s, CLS 0, TBT 0 ms.
+- Evidence: `evidence/live/polish-3-landing/verify.json`,
+  `evidence/live/polish-3-demo/verify.json`,
+  `evidence/live/polish-3-landing-mobile.png`,
+  `evidence/live/polish-3-demo-mobile.png`,
+  `evidence/live/polish-3-insights-desktop.png`, and
   `evidence/live/lighthouse.json`.
-- Finding-by-finding mapping: `.factory/polish-2.md`.
 
-## Run and verify
+## Run and deploy
 
 ```bash
 npm ci
 npm run check
 npm run test:claims
 npm run check:live
-```
-
-To run browser checks against production:
-
-```bash
-PLAYWRIGHT_BASE_URL=https://skill-decision-drills.sociobot.in npx playwright test
-```
-
-Deploy the built `dist/` directory with:
-
-```bash
+PLAYWRIGHT_BASE_URL=https://skill-decision-drills.sociobot.in npm run test:e2e
+npm run build
 /opt/fleet/lib/deploy-static.sh skill-decision-drills dist
 ```
 
-## Known gaps and next steps
+## Known gaps
 
-None. No review finding or severity is deferred.
+None. No finding is deferred.
