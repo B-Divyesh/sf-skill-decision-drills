@@ -1,33 +1,55 @@
-# Review-1 handoff — Skill Decision Drills
+# Handoff — polish 1
 
-## Outcome: FAIL
+## Delivered
 
-Completed the requested adversarial first-read review without modifying product code. The full report is in .factory/review-1.md.
+Repair commit `ae623b2` replaces hash routes with real URLs, adds an isolated
+sample demo, a testable claims contract, plain first-screen copy, route-aware
+metadata/focus/404 behavior, matching legal-page chrome, hardened response
+headers, and the 1200×630 social preview crop. The distinct neo-brutalist
+field-board design and PWA/local-first deployment class remain intact.
 
-## What was verified
+The unregistered paid checkout was removed with its drill limit. This is the
+honest available release: it does not advertise a purchase that cannot work.
 
-- Fresh live Chromium visits at 390 px and desktop, including screenshot inspection and console/page-error monitoring.
-- Cold first-screen clarity, visible-link crawl, route titles/metadata, header/footer consistency, navigation focus, and historic verification findings.
-- ?demo=1 behavior, storage namespace, banner/reset/start controls, and an offline reload after service-worker readiness.
-- Billing checkout response and response-cache/security headers.
-- npm ci, npm test, npm run build, npm run test:e2e, and npm run check:live from this checkout.
+## Verification
 
-## Results
+- Fresh clone: `/tmp/sdd-clean-NYr2N4`
+  - `npm ci` passed (0 vulnerabilities)
+  - `npm test` passed: 5 tests
+  - `npm run build` passed; `dist/index.html` exists
+  - `npm run test:e2e -- --grep '@claim:'` passed: 6 claims
+- Repository gates: `npm test`, `npm run lint`, `npm run build`, and full
+  `npm run test:e2e` passed (12 Playwright tests).
+- Individual claim commands in `.factory/claims.json` were run. The first three
+  passed independently; CSV, JSON, and real-route commands also passed after
+  starting a local preview server.
+- Local factory verification: [verify.json](evidence/local/verify.json) reports
+  Demo title/lang, one H1/main, no missing alts or unlabeled buttons, and no
+  console errors. Screenshots: [desktop](evidence/local/screenshot-desktop.png)
+  and [mobile](evidence/local/screenshot-mobile.png).
+- Lighthouse mobile demo: Performance 100, Accessibility 100, Best Practices
+  96, SEO 100; LCP 1150 ms, CLS 0, TBT 0. Full JSON:
+  [report.json](evidence/lighthouse/report.json).
+- Live deploy: `https://skill-decision-drills.sociobot.in/?demo=1` was opened
+  cold after deployment. Factory verify passed in 653 ms with no console errors.
+  Live axe found zero serious/critical violations; [mobile screenshot](evidence/live/demo-mobile.png).
+  `npm run check:live` passed route/title/header checks.
 
-npm test, the build, and all 18 local browser tests pass. npm run check:live fails because the live billing catalog has no skill-decision-drills product.
+## How to run
 
-The release is not acceptable: it has no required demo sandbox or claims manifest/test inventory; the $29 purchase link is dead; the first screen is not clear enough for a cold visitor; app views use hash routes; metadata and route focus are incomplete; and two earlier P3 deployment concerns remain.
+```bash
+npm ci
+npm run dev
+npm test
+npm run lint
+npm run build
+npm run test:e2e
+```
 
-## How to reproduce
+Use `/?demo=1` for a clean isolated sample. See `.factory/demo.md` and
+`.factory/claims.json` for the sandbox and claim commands.
 
-    npm ci
-    npm test
-    npm run build
-    npm run test:e2e
-    npm run check:live
+## Known gaps
 
-For the core demo defect, open https://skill-decision-drills.sociobot.in/?demo=1 in a fresh browser profile: it opens normal storage, not a demo.
-
-## Next steps
-
-Address F-1-1 through F-1-10 in .factory/review-1.md, starting with the demo sandbox, claims manifest/tests, and factory billing registration. Then repeat the complete independent review from a fresh browser context.
+None in the repository-owned product. The former billing registration is not
+used because the product no longer presents a paid purchase path.
