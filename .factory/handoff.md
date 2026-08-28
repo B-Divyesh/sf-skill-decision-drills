@@ -1,4 +1,37 @@
-# Handoff — perfection loop round 2
+# Handoff — adversarial review 3
+
+## Review-only update
+
+This worker made no product-code, asset, or configuration changes. It added
+`.factory/review-3.md` and updated this handoff after a full fresh review of
+commit `3db077c997665eb745ec3ec0abfcb082eccddc81`.
+
+The review verdict is **FAIL**. The live product works through its demo,
+offline path, metadata/routing, accessibility, and link checks, but two claim
+tests do not prove quantitative copy promises:
+
+- `sample-access` does not assert exactly three visible sample choices.
+- `insights` does not create and assert a non-zero missed-choice count.
+
+There is also a minor plain-words issue: “Need a hint?” and “Continue to next
+decision” should be result-naming actions.
+
+How to verify the review evidence:
+
+```bash
+npm ci
+npm test
+npm run lint
+npm run build
+npm run test:claims
+```
+
+The reviewer additionally ran the 17 tagged claim tests from clean clone
+`/tmp/sdd-review3-clean-S4sE22` against its built production server; all passed
+despite the two incomplete assertions. See `.factory/review-3.md` for the
+required test changes and full live evidence.
+
+## Earlier handoff
 
 ## Delivered
 
