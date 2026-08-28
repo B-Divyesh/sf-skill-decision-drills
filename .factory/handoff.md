@@ -28,8 +28,9 @@ Production deployment ID: `24a418ed-0c37-4299-b9b3-b0f3d9ae1dbc`.
 - Production build: `dist/index.html`; initial JS 47.57 kB raw / 15.50 kB
   gzip; CSS 24.43 kB raw / 5.84 kB gzip.
 - Every one of 17 `.factory/claims.json` commands passed individually from
-  clean clone `/tmp/sdd-polish2-clean-kG1AN9`. The final aggregate clean-clone
-  claim run is recorded below.
+  clean clone `/tmp/sdd-polish2-clean-kG1AN9`. A final aggregate run against
+  pushed commit `7e4d3ca` also passed 17/17 in clean clone
+  `/tmp/sdd-polish2-final-wsRtMj`.
 - Live Playwright at <https://skill-decision-drills.sociobot.in>: 9/9 selected
   route, demo, offline, first-screen, 200% reflow, reduced-motion, mobile, and
   axe checks passed. The blocked-service-worker console test also passed 1/1.
