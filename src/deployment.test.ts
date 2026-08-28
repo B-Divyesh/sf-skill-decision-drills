@@ -16,7 +16,7 @@ describe('static deployment response policy', () => {
       expect.objectContaining({ route: '/demo', rewrite: '/index.html' }),
       expect.objectContaining({ route: '/drills/*', rewrite: '/index.html' })
     ]));
-    expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
+    expect(config.responseOverrides['404']).toEqual({ rewrite: '/not-found.html', statusCode: 404 });
     expect('navigationFallback' in config).toBe(false);
   });
 });

@@ -52,7 +52,7 @@
   ],
   "responseOverrides": {
     "404": {
-      "rewrite": "/404.html",
+      "rewrite": "/not-found.html",
       "statusCode": 404
     }
   },
